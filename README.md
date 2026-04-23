@@ -92,12 +92,18 @@ JSON response + audit
 
 ## API
 
+Works standalone (port) or behind reverse proxy (`/sensible` path).
+
 ```bash
-# Execute action
+# Standalone
 curl -X POST https://host:8443/v1/tasks \
   -H "Authorization: Bearer <api-key>" \
-  -H "Content-Type: application/json" \
-  -d '{"action": "compile", "args": ["--target=linux"]}'
+  -d '{"request": "compile --target=linux"}'
+
+# Behind nginx at /sensible
+curl -X POST https://host/sensible/v1/tasks \
+  -H "Authorization: Bearer <api-key>" \
+  -d '{"request": "compile --target=linux"}'
 
 # Response
 {
@@ -113,6 +119,16 @@ curl -X POST https://host:8443/v1/tasks \
 ```
 
 ## Installation
+
+### Run
+
+```bash
+# Standalone (port)
+sensible serve --port 8443
+
+# Behind reverse proxy (/sensible path)
+sensible serve --path /sensible
+```
 
 ### Bootstrap via SSH
 
