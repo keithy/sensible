@@ -102,7 +102,7 @@ curl -X POST https://host:8443/v1/tasks \
 # Response
 {
   "id": "task-1234",
-  "request": {"action": "compile", "args": ["--target=linux"]},
+  "request": "compile --target=linux",
   "status": "success",
   "exit_code": 0,
   "stdout": "Build complete\n",

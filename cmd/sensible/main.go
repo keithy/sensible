@@ -34,22 +34,21 @@ type ActionConfig struct {
 
 // TaskRequest is the incoming task JSON
 type TaskRequest struct {
-	Action string   `json:"action"`
-	Args   []string `json:"args,omitempty"`
-	Timeout int     `json:"timeout,omitempty"`
+	Request string `json:"request"`
+	Timeout int    `json:"timeout,omitempty"`
 }
 
 // TaskResponse is the task result JSON
 type TaskResponse struct {
-	ID         string                 `json:"id"`
-	Request    map[string]interface{} `json:"request"`
-	Status     string                 `json:"status"`
-	ExitCode   int                    `json:"exit_code,omitempty"`
-	Reason     string                 `json:"reason,omitempty"`
-	Stdout     string                 `json:"stdout,omitempty"`
-	Stderr     string                 `json:"stderr,omitempty"`
-	DurationMs int64                  `json:"duration_ms,omitempty"`
-	Timestamp  string                 `json:"timestamp"`
+	ID         string `json:"id"`
+	Request    string `json:"request"`
+	Status     string `json:"status"`
+	ExitCode   int    `json:"exit_code,omitempty"`
+	Reason     string `json:"reason,omitempty"`
+	Stdout     string `json:"stdout,omitempty"`
+	Stderr     string `json:"stderr,omitempty"`
+	DurationMs int64  `json:"duration_ms,omitempty"`
+	Timestamp  string `json:"timestamp"`
 }
 
 var cfg Config
@@ -125,13 +124,24 @@ func tasksHandler(w http.ResponseWriter, r *http.Request) {
 
 	id := fmt.Sprintf("task-%d", time.Now().UnixMilli())
 	ts := time.Now().UTC().Format(time.RFC3339)
-	request := map[string]interface{}{"action": req.Action, "args": req.Args}
 
-	// Whitelist check
+	// Whitelist check: extract action name (first word)
+	parts := strings.Fields(req.Request)
+	if len(parts) == 0 {
+		sendResponse(w, &TaskResponse{
+			ID:        id,
+			Request:   req.Request,
+			Status:    "rejected",
+			Reason:    "EMPTY_REQUEST",
+			Timestamp: ts,
+		})
+		return
+	}
+	action := parts[0]
 	allowed := false
 	var actionCfg ActionConfig
 	for _, a := range cfg.Whitelist {
-		if a.Name == req.Action {
+		if a.Name == action {
 			allowed = true
 			actionCfg = a
 			break
@@ -140,7 +150,7 @@ func tasksHandler(w http.ResponseWriter, r *http.Request) {
 	if !allowed {
 		sendResponse(w, &TaskResponse{
 			ID:        id,
-			Request:   request,
+			Request:   req.Request,
 			Status:    "rejected",
 			Reason:    "ACTION_NOT_WHITELISTED",
 			Timestamp: ts,
@@ -149,11 +159,12 @@ func tasksHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Args validation
+	args := parts[1:]
 	for name, pattern := range actionCfg.ArgsSchema {
 		if pattern == "" {
 			continue
 		}
-		for _, arg := range req.Args {
+		for _, arg := range args {
 			if strings.HasPrefix(arg, "--"+name+"=") {
 				val := strings.SplitN(arg, "=", 2)[1]
 				if matched, _ := regexp.MatchString(pattern, val); !matched {
@@ -175,7 +186,7 @@ func tasksHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	started := time.Now()
-	stdout, stderr, exitCode := execute(req.Action, req.Args, timeout)
+	stdout, stderr, exitCode := execute(req.Request, timeout)
 	duration := time.Since(started).Milliseconds()
 
 	status := "success"
@@ -185,7 +196,7 @@ func tasksHandler(w http.ResponseWriter, r *http.Request) {
 
 	sendResponse(w, &TaskResponse{
 		ID:         id,
-		Request:    request,
+		Request:    req.Request,
 		Status:     status,
 		ExitCode:   exitCode,
 		Stdout:     stdout,
@@ -199,20 +210,15 @@ func taskGetHandler(w http.ResponseWriter, r *http.Request) {
 	http.Error(w, "not implemented", http.StatusNotImplemented)
 }
 
-func execute(action string, args []string, timeout int) (stdout, stderr string, exitCode int) {
-	// Build command string (args not quoted for execline)
-	cmdStr := action
-	if len(args) > 0 {
-		cmdStr += " " + strings.Join(args, " ")
-	}
-
+func execute(request string, timeout int) (stdout, stderr string, exitCode int) {
 	// Write to temp file for execlineb
+	// request is already a valid command string like "compile --target=linux"
 	tmp, err := os.CreateTemp("", "sensible-*.sh")
 	if err != nil {
 		return "", fmt.Sprintf("temp: %v", err), 1
 	}
 	tmpPath := tmp.Name()
-	tmp.WriteString(cmdStr)
+	tmp.WriteString(request)
 	tmp.Close()
 	defer os.Remove(tmpPath)
 
