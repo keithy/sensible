@@ -1,129 +1,90 @@
 # Sensible
 
-Secure-by-default remote task execution for Groan CLIs.
+**Remote execution for AI agents — safe by default.**
 
-Sensible is HTTP/JSON native task daemon with execline execution. Bootstrap via SSH + makeself, operate via HTTP.
+Sensible gives AI the same capabilities your SSH/Ansible already has, but with guardrails that make it safe to delegate.
 
-## Architecture
+## The Problem
 
-### Two-Phase Trust Model
+Software houses have SSH/Ansible access to client servers. They're now being pressured to let AI automate tasks (compile, deploy, restart, update). But raw SSH access for AI is a catastrophe waiting to happen:
 
-**Phase 1: Bootstrap (SSH, privileged)**
+- **Prompt injection** — malicious input tricks AI into executing attacker commands
+- **Jailbroken AI** — safety guardrails bypassed
+- **Too much power** — AI can do anything, not just the intended task
+
+> You wouldn't give a junior dev root SSH. Treat AI the same way.
+
+## The Solution
+
 ```
-Admin → ssh root@host → makeself installer → sensible installed + api-key + whitelist
+ISV has SSH to clients     →     ISV has Sensible to clients
+     ↓                              ↓
+  Full access                    Safe access
+  Everything                     Approved actions only
+  Audit logs                    JSON audit trail
 ```
-- One-time setup by privileged user
-- Creates trust anchor
-- Generates API keys
-- Configures allowed actions
 
-**Phase 2: Runtime (HTTP/JSON)**
-```
-AI → HTTP POST {"action": "compile"} → sensible daemon → JSON response
-```
-- No more SSH needed after install
-- API key auth
-- execline hardened execution
+**Sensible = SSH/Ansible access, AI-safe edition**
 
-### How it Works
+Same actions. Same hosts. But with guardrails that make AI delegation responsible.
+
+## How It Works
 
 ```
 ┌─────────────┐     HTTP/JSON      ┌──────────────────┐     execline      ┌─────────┐
-│  AI/Groan  │ ──────────────────► │   sensibled       │ ─────────────────► │ actions │
-│    CLI     │ ◄────────────────── │   (daemon)       │ ◄───────────────── │  dir    │
+│  AI Agent   │ ──────────────────► │   sensibled       │ ─────────────────► │ actions │
+│             │ ◄────────────────── │   (daemon)       │ ◄───────────────── │  dir    │
 └─────────────┘    JSON response    └──────────────────┘    stdout/stderr    └─────────┘
      │                                       │
-     │           API key auth                │
+     │         API key + whitelist           │
      └─────────────────────────────────────┘
 ```
 
+1. **Bootstrap** — ISV SSHs to client, installs sensible + API key + whitelist
+2. **Runtime** — AI calls sensible over HTTP with API key
+3. **Validation** — Action checked against whitelist, args validated
+4. **Execution** — execline runs action (not shell, prevents injection)
+5. **Response** — JSON with audit trail: stdout, stderr, duration, exit code
+
 ## Security Model
 
-### execline Execution
-
-Using execline (not shell) provides inherent protection:
-- **No shell interpolation** — variables use `import -env`, not `$VAR`
-- **No command chaining** — `&&` and `;` are not shell operators
-- **No shell escape** — `execlineb "$file"` not `-c "$(cat)"`, prevents injection
-- **Builtin-only control flow** — `if`, `try`, `background` builtins
-
-### Layered Validation
+### Layered Defense
 
 ```
 HTTP Request
     ↓
 API Key (Bearer token)
     ↓
-JSON Schema validation
-    ↓
 Action whitelist
     ↓
-Args validation (optional)
+Args validation (regex)
     ↓
 execline execution
     ↓
-JSON response
+JSON response + audit
 ```
 
-Even if API key is compromised, whitelist restricts actions. Even if whitelist bypassed, execline prevents shell injection.
+### Why execline?
 
-## Installation
+Shell is fundamentally unsafe for AI execution:
+- `$VAR` interpolation = injection vector
+- `; cmd` = command chaining
+- `&&`, `||` = flow control attacks
 
-### Build Installer
+execline has no shell interpolation. Variables use `import -env`. Commands can't chain. `execlineb "$file"` not `-c "$(cat)"`.
 
-```bash
-# Build sensible binary
-go build -o sensible ./cmd/sensible
+**Even if API key is compromised, whitelist limits actions. Even if whitelist bypassed, execline prevents shell injection.**
 
-# Create makeself installer
-makeself.sh sensible sensible-installer.sh "Sensible" "./sensible install"
-```
-
-### Bootstrap Host
-
-```bash
-# Single host
-sensible deploy --host web1 --ssh-user root --ssh-key ~/.ssh/id_ed25519 --installer sensible-installer.sh
-
-# Multiple hosts
-sensible deploy --hosts hosts.txt --ssh-user root --ssh-key ~/.ssh/id_ed25519 --installer sensible-installer.sh
-```
-
-The deploy command:
-1. SCP installer to host
-2. SSH and run installer with `--install`
-3. Start sensible daemon via systemd
-4. Return endpoint URL and API key
-
-### Runtime
+## API
 
 ```bash
 # Execute action
-sensible run web1 compile --target=linux
-
-# Check status
-sensible status --host web1
-
-# List actions
-sensible list --host web1
-```
-
-## HTTP API
-
-### POST /v1/tasks
-
-Submit a task for execution.
-
-**Request:**
-```bash
-curl -X POST https://web1:8443/v1/tasks \
+curl -X POST https://host:8443/v1/tasks \
   -H "Authorization: Bearer <api-key>" \
   -H "Content-Type: application/json" \
-  -d '{"action": "compile", "args": ["--target=linux"], "timeout": 300}'
-```
+  -d '{"action": "compile", "args": ["--target=linux"]}'
 
-**Response:**
-```json
+# Response
 {
   "id": "task-1234",
   "request": {"action": "compile", "args": ["--target=linux"]},
@@ -136,21 +97,37 @@ curl -X POST https://web1:8443/v1/tasks \
 }
 ```
 
-### GET /v1/tasks/:id
+## Installation
 
-Get task result.
+### Bootstrap via SSH
 
-### GET /v1/actions
+```bash
+# Build installer
+makeself.sh sensible sensible-installer.sh "Sensible" "./sensible install"
 
-List allowed actions.
+# Deploy to clients
+sensible deploy --hosts=web1,web2 --ssh-user=root --installer=sensible-installer.sh
+```
 
-### GET /v1/health
+Deploy:
+1. SCP installer to host
+2. SSH + run installer (`./sensible-installer.sh --install`)
+3. Sensible starts via systemd
+4. Returns endpoint + API key
 
-Health check (no auth required).
+### Runtime
+
+```bash
+# Execute
+sensible run web1 compile --target=linux
+
+# Check status
+sensible status --host web1
+```
 
 ## Configuration
 
-### Whitelist Config (`/etc/sensible/whitelist.yaml`)
+### Whitelist (`/etc/sensible/whitelist.yaml`)
 
 ```yaml
 actions:
@@ -159,13 +136,8 @@ actions:
       target: "^(linux|darwin|windows)$"
     timeout: 600
   - name: restart
-    args_schema: {}
     timeout: 60
   - name: update
-    args_schema: {}
-    timeout: 300
-  - name: test
-    args_schema: {}
     timeout: 300
 ```
 
@@ -173,65 +145,46 @@ actions:
 
 ```
 /etc/sensible/keys/
-├── default.pem      # Default key for clients
-├── admin.pem        # Key with admin privileges
-└── ai-client.pem    # Key for AI agents
-```
-
-Generate new key:
-```bash
-sensible keygen --name ai-client
+├── isv.pem          # ISV's key
+└── ai-agent.pem     # AI's key
 ```
 
 ## Project Structure
 
 ```
 sensible/
-├── cmd/
-│   └── sensible/
-│       ├── main.go          # CLI entry point
-│       └── install.go       # Install subcommand
+├── cmd/sensible/     # Daemon + CLI
 ├── pkg/
-│   ├── daemon/              # HTTP server + task execution
-│   │   ├── server.go
-│   │   ├── executor.go      # execline execution
-│   │   ├── validator.go     # whitelist validation
-│   │   └── handler.go      # HTTP handlers
-│   ├── deploy/             # SSH + makeself deployment
-│   │   └── deploy.go
-│   └── config/
-│       └── config.go
-├── actions/                 # Built-in actions (execline scripts)
+│   ├── daemon/        # HTTP server
+│   ├── deploy/       # SSH bootstrap
+│   └── config/       # Config loading
+├── actions/          # Built-in actions
 ├── Makefile
 └── README.md
 ```
 
 ## Relationship to Groan
 
-**Groan** = CLI builder (shell scripts → hierarchical CLI)
+**Groan** — CLI builder (shell scripts → hierarchical CLI)
 
-**Sensible** = Remote execution addon for Groan
+**Sensible** — Remote execution for Groan CLIs
 
 ```
-groan compile --target=linux     # Local execution
-sensible run web1 compile        # Remote execution via Groan CLI
+groan compile --target=linux      # Local
+sensible run web1 compile         # Remote
 ```
 
-Sensible executes Groan CLI remotely via execline. Later, sensible will be merged into Groan as the remote execution engine.
+Sensible executes Groan CLI remotely via execline.
 
 ## Relationship to host-actions
 
-**host-actions** = Sensible for containers (file queue + dispatch)
+**host-actions** — Sensible for containers (file queue + dispatch)
 
-**Sensible** = Sensible for hosts (HTTP + SSH bootstrap)
+**Sensible** — Sensible for hosts (HTTP + SSH bootstrap)
 
-Both share:
-- execline execution
-- whitelist hardening
-- JSON request/response
-- CLI-native for AI
+Both share: execline execution, whitelist hardening, JSON responses, CLI-native for AI.
 
-Transport layer differs:
+Transport differs:
 - host-actions: volume mount + systemd
 - sensible: HTTP + SSH bootstrap
 
