@@ -41,7 +41,7 @@ Same actions. Same hosts. But with guardrails that make AI delegation responsibl
 ```
 
 1. **Bootstrap** — ISV SSHs to client, installs sensible + API key + whitelist
-2. **Runtime** — AI calls sensible over HTTP with API key
+2. **Execute** — AI calls sensible over HTTP with request
 3. **Validation** — Action checked against whitelist, args validated
 4. **Execution** — execline runs action (not shell, prevents injection)
 5. **Response** — JSON with audit trail: stdout, stderr, duration, exit code
@@ -70,53 +70,119 @@ ai_output="compile; rm -rf /"  # injected via prompt
 
 **The guardrail: No shell. No interpretation layer. No injection surface.**
 
-With shell, `$anything` is a potential injection. With execline, the script IS the command. There's no interpretation layer to exploit.
-
-**Even if API key is compromised, whitelist limits actions. Even if whitelist bypassed, execline prevents shell injection.**
-
-## Security Model
-
-```
-HTTP Request
-    ↓
-API Key (Bearer token)
-    ↓
-Action whitelist
-    ↓
-Args validation (regex)
-    ↓
-execline execution ← the guardrail
-    ↓
-JSON response + audit
-```
+Even if API key is compromised, whitelist limits actions. Even if whitelist bypassed, execline prevents shell injection.
 
 ## API
 
-Works standalone (port) or behind reverse proxy (`/sensible` path).
+Single endpoint handles everything. Sensible decides sync vs async based on action timeout.
+
+### Execute
+
+```
+GET|POST /sensible?request=<action> [--arg=val]
+GET|POST /sensible?request=<action> [--arg=val]&field=<field>
+```
+
+| Response | Meaning |
+|----------|---------|
+| HTTP 200 | Task completed. Body is result. |
+| HTTP 202 | Task queued (long-running). Body is `{id: "..."}`. |
+
+**Examples:**
 
 ```bash
-# Standalone
-curl -X POST https://host:8443/v1/tasks \
-  -H "Authorization: Bearer <api-key>" \
-  -d '{"request": "compile --target=linux"}'
+# Quick task (runs sync)
+curl "GET /sensible?request=status&field=id"
+→ status-123
 
-# Behind nginx at /sensible
-curl -X POST https://host/sensible/v1/tasks \
-  -H "Authorization: Bearer <api-key>" \
-  -d '{"request": "compile --target=linux"}'
+# Long task (returns ID, runs async)
+curl "POST /sensible?request=compile --target=linux&field=id"
+→ task-456
+# HTTP 202
 
-# Response
+# Full result for short task
+curl "POST /sensible?request=status"
 {
-  "id": "task-1234",
-  "request": "compile --target=linux",
+  "id": "status-123",
   "status": "success",
   "exit_code": 0,
-  "stdout": "Build complete\n",
+  "stdout": "Server is healthy\n",
   "stderr": "",
-  "duration_ms": 45230,
+  "duration_ms": 12,
   "timestamp": "2026-04-23T17:00:00Z"
 }
 ```
+
+### Check Status
+
+```
+GET /sensible/:id
+GET /sensible/:id?field=<field>
+```
+
+```bash
+# Poll for completion
+while curl -s "GET /sensible/task-456?field=exit_code" | grep -q "null"; do
+  sleep 1
+done
+
+# Get result
+curl "GET /sensible/task-456?field=stdout"
+# "Build complete\n"
+```
+
+### Chain Tasks
+
+Wait for one task to complete before starting another:
+
+```
+POST /sensible/:id?request=<action> [--arg=val]
+```
+
+```bash
+# compile, then test, then deploy
+ID=$(curl -s "POST /sensible?request=compile --target=linux&field=id")
+TEST_ID=$(curl -s "POST /sensible/$ID?request=test&field=id")
+curl -s "POST /sensible/$TEST_ID?request=deploy"
+```
+
+### Field Extraction
+
+Use `field=` to get just that value. No JSON parsing needed.
+
+```bash
+curl "GET /sensible?request=status&field=id"       # status-123
+curl "GET /sensible?request=status&field=stdout"   # Server is healthy
+curl "GET /sensible?request=status&field=exit_code" # 0
+```
+
+Fields: `id`, `status`, `exit_code`, `stdout`, `stderr`, `duration_ms`, `timestamp`
+
+### Timeout
+
+Default timeout is 15s. Actions exceeding this run async (HTTP 202).
+
+Override how long client is willing to wait:
+
+```bash
+# Wait up to 60s for compile
+curl "POST /sensible?request=compile --target=linux&timeout=60"
+
+# Never wait (always async)
+curl "POST /sensible?request=status&timeout=0"
+```
+
+## HTTP Status Codes
+
+| Code | Meaning |
+|------|---------|
+| 200 | Complete — body is result |
+| 202 | Queued — body is `{id}` |
+| 400 | Bad request — invalid syntax |
+| 401 | Unauthorized — bad API key |
+| 403 | Forbidden — action not whitelisted |
+| 404 | Not found — task ID unknown |
+| 500 | Internal error |
 
 ## Installation
 
@@ -140,31 +206,15 @@ makeself.sh sensible sensible-installer.sh "Sensible" "./sensible install"
 sensible deploy --hosts=web1,web2 --ssh-user=root --installer=sensible-installer.sh
 ```
 
-Deploy:
-1. SCP installer to host
-2. SSH + run installer (`./sensible-installer.sh --install`)
-3. Sensible starts via systemd
-4. Returns endpoint + API key
-
-### Runtime
-
-```bash
-# Execute
-sensible run web1 compile --target=linux
-
-# Check status
-sensible status --host web1
-```
-
 ## Configuration
 
 ### Whitelist (`/etc/sensible/whitelist.yaml`)
 
 ```yaml
 actions:
+  - name: status
+    timeout: 10
   - name: compile
-    args_schema:
-      target: "^(linux|darwin|windows)$"
     timeout: 600
   - name: restart
     timeout: 60
@@ -202,7 +252,7 @@ sensible/
 
 ```
 groan compile --target=linux      # Local
-sensible run web1 compile         # Remote
+sensible compile --target=linux   # Remote
 ```
 
 Sensible executes Groan CLI remotely via execline.
@@ -213,7 +263,7 @@ Sensible executes Groan CLI remotely via execline.
 
 **Sensible** — Sensible for hosts (HTTP + SSH bootstrap)
 
-Both share: execline execution, whitelist hardening, JSON responses, CLI-native for AI.
+Both share: execline execution, whitelist hardening, CLI-native for AI.
 
 Transport differs:
 - host-actions: volume mount + systemd
