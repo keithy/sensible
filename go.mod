@@ -1,4 +1,4 @@
-module github.com/groan/sensible
+module github.com/keithy/sensible
 
 go 1.21
 
