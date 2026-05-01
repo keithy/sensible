@@ -1,5 +1,11 @@
 # Sensible
 
+NOTE - WIP - NOT QUITE READY
+
+**Containerised AI agent → Whitelisted host execution tasks**
+
+The sensible architecture is designed to support this common usecase 
+
 **Remote execution for AI agents — safer by default.**
 
 Sensible gives AI a remote execution capability similar to SSH/Ansible
