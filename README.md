@@ -1,27 +1,38 @@
 # Sensible
 
-**Remote execution for AI agents — safe by default.**
+**Remote execution for AI agents — safer by default.**
 
-Sensible gives AI the same capabilities your SSH/Ansible already has, but with guardrails that make it safe to delegate.
+Sensible gives AI a remote execution capability similar to SSH/Ansible
+but with guardrails that make it safer to delegate. The remote execution 
+step is performed as an `execlineb` script rather than as a shell script. 
+
+This approach still has the flexibility needed for most requirements,
+the script is inherantly resistant to injection attacks and it is
+straightforward to add explicit guardrails using simple black
+and whitelisting.
 
 ## The Problem
 
-Software houses have SSH/Ansible access to client servers. They're now being pressured to let AI automate tasks (compile, deploy, restart, update). But raw SSH access for AI is a catastrophe waiting to happen:
+Widespread SSH/Ansible access to servers for automating tasks is an obvious
+attack surface that ought not to be handed directly to AI agents who are
+themselves vulnerable to persuasion to nefarious ends.
 
 - **Prompt injection** — malicious input tricks AI into executing attacker commands
-- **Jailbroken AI** — safety guardrails bypassed
+- **Guardrail workarounds** - Agents upload scripts to avoid blacklisted commands
+- **Jailbroken AI** — AI's easily ignore their safety guidelines
 - **Too much power** — AI can do anything, not just the intended task
+- **Whitelist requirement** - unnecessarily opens up the remote execution attack vector
 
 > You wouldn't give a junior dev root SSH. Treat AI the same way.
 
 ## The Solution
 
 ```
-ISV has SSH to clients     →     ISV has Sensible to clients
-     ↓                              ↓
-  Full access                    Safe access
-  Everything                     Approved actions only
-  Audit logs                    JSON audit trail
+SSH to clients     →     Sensible to clients
+     ↓                          ↓
+  Full access              Safe access
+  Everything               Restricted actions
+  Audit logs               JSON audit trail
 ```
 
 **Sensible = SSH/Ansible access, AI-safe edition**
