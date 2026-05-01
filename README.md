@@ -48,7 +48,7 @@ Container communicates with host via HTTP:
 ```
 Container                          Host
 ──────────                         ────
-sensible-client do "compile"  →   sensible-server (port 8443)
+sensible-client do "compile"  →   sensible-server (port 2222)
                                ←   executes via execlineb
        ↑                              ↑
   reads JSON response              writes to disk
@@ -170,7 +170,7 @@ Environment variables:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `SENSIBLE_PORT` | 8443 | HTTP server port |
+| `SENSIBLE_PORT` | 2222 | HTTP server port |
 | `SENSIBLE_TASKS_DIR` | `/var/lib/sensible/tasks` | Task storage |
 | `SENSIBLE_ACTIONS_DIR` | `/var/lib/sensible/actions` | execline scripts |
 | `SENSIBLE_KEYS_DIR` | `/etc/sensible/keys` | API keys (`.pem` files) |

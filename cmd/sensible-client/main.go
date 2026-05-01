@@ -57,7 +57,7 @@ func printUsage() {
 	fmt.Println("  sensible-client status <file_id>       Check task status")
 	fmt.Println("")
 	fmt.Println("Environment:")
-	fmt.Println("  SENSIBLE_HOST          API host:port (default: localhost:8443)")
+	fmt.Println("  SENSIBLE_HOST          API host:port (default: localhost:2222)")
 	fmt.Println("  SENSIBLE_AUTH_HEADER   Authorization header value")
 }
 
@@ -65,7 +65,7 @@ func getHost() string {
 	if host := os.Getenv("SENSIBLE_HOST"); host != "" {
 		return host
 	}
-	return "localhost:8443"
+	return "localhost:2222"
 }
 
 func getAuthHeader() string {

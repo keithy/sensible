@@ -34,7 +34,7 @@ go build ./pkg/sensible
 ./sensible-queue.sh status <file_id>
 
 # HTTP server
-./sensible-server                   # Starts HTTP daemon on :8443
+./sensible-server                   # Starts HTTP daemon on :8080
 
 # HTTP client (Go/Bash, talks to sensible-server)
 ./sensible-client do <action>
@@ -158,7 +158,7 @@ type Result struct {
 
 | Env Var | Default |
 |---------|---------|
-| `SENSIBLE_PORT` | 8443 |
+| `SENSIBLE_PORT` | 8080 |
 | `SENSIBLE_ACTIONS_DIR` | `/var/lib/sensible/actions` |
 | `SENSIBLE_KEYS_DIR` | `/etc/sensible/keys` |
 | `SENSIBLE_TASKS_DIR` | `/var/lib/sensible/tasks` |

@@ -7,7 +7,7 @@
 #
 
 # Config
-SENSIBLE_HOST="${SENSIBLE_HOST:-localhost:8443}"
+SENSIBLE_HOST="${SENSIBLE_HOST:-localhost:2222}"
 SENSIBLE_URL="http://${SENSIBLE_HOST}/sensible"
 AUTH_HEADER="${SENSIBLE_AUTH_HEADER:-}"
 
@@ -21,7 +21,7 @@ Commands:
   sensible-client status <file_id>        Check task status
 
 Environment:
-  SENSIBLE_HOST          API host:port (default: localhost:8443)
+  SENSIBLE_HOST          API host:port (default: localhost:2222)
   SENSIBLE_AUTH_HEADER   Authorization header value
 
 Examples:
