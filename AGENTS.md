@@ -5,13 +5,12 @@ Remote execution daemon for AI agents, written in Go. Executes whitelisted actio
 ## Building
 
 ```bash
-# Local queue interface (talks to disk directly)
+# Unified wrapper (delegates to subcommands)
+go build -o sensible ./cmd/sensible
+
+# Or build components individually
 go build -o sensible-queue ./cmd/sensible-queue
-
-# HTTP server
 go build -o sensible-server ./cmd/sensible-server
-
-# HTTP client (talks to sensible-server)
 go build -o sensible-client ./cmd/sensible-client
 
 # Library (used by all above)
@@ -21,24 +20,19 @@ go build ./pkg/sensible
 ## Running
 
 ```bash
-# Go CLI (local queue interface, talks to disk directly)
-./sensible-queue do <action>        # Execute action directly
-./sensible-queue worker             # Run background worker (continuous)
-./sensible-queue list               # List pending tasks
-./sensible-queue status <file_id>    # Check task status
+# Unified wrapper (delegates to sensible-queue, sensible-server, sensible-client)
+./sensible queue do <action>        # Local queue - execute action
+./sensible queue worker            # Local queue - background worker
+./sensible queue list              # Local queue - list pending
+./sensible server                   # HTTP server on :2222
+./sensible client do <action>       # HTTP client - execute action
 
-# Bash CLI (same as Go, alternative implementation)
-./sensible-queue.sh do <action>
-./sensible-queue.sh worker
-./sensible-queue.sh list
-./sensible-queue.sh status <file_id>
-
-# HTTP server
-./sensible-server                   # Starts HTTP daemon on :8080
-
-# HTTP client (Go/Bash, talks to sensible-server)
+# Or call subcommands directly:
+./sensible-queue do <action>
+./sensible-queue worker
+./sensible-queue list
+./sensible-server
 ./sensible-client do <action>
-./sensible-client.sh do <action>    # Bash version
 ```
 
 ## Testing
@@ -57,17 +51,15 @@ sensible/
 │   ├── executor.go        # execlineb execution
 │   └── config.go          # Config loading
 │
-├── cmd/sensible-queue/   # Go CLI (local queue interface)
+├── cmd/sensible/          # Unified wrapper (delegates to subcommands)
 │   └── main.go
-│
-├── cmd/sensible-queue.sh  # Bash CLI (same functionality)
-│
+├── cmd/sensible-queue/   # Local queue CLI
+│   └── main.go
+├── cmd/sensible-queue.sh  # Bash CLI (POSIX shell)
 ├── cmd/sensible-server/   # HTTP server
 │   └── main.go
-│
-├── cmd/sensible-client/   # Go HTTP client
+├── cmd/sensible-client/   # HTTP client
 │   └── main.go
-│
 ├── cmd/sensible-client.sh # Bash HTTP client
 
 └── actions/               # Empty — execline scripts on deployed hosts
