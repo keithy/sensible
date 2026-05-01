@@ -17,6 +17,20 @@ the script is inherantly resistant to injection attacks and it is
 straightforward to add explicit guardrails using simple black
 and whitelisting.
 
+## The Problem
+
+Widespread SSH/Ansible access to servers for automating tasks is an obvious
+attack surface that ought not to be handed directly to AI agents who are
+themselves vulnerable to persuasion to nefarious ends.
+
+- **Prompt injection** — malicious input tricks AI into executing attacker commands
+- **Guardrail workarounds** - Agents upload scripts to avoid blacklisted commands
+- **Jailbroken AI** — AI's easily ignore their safety guidelines
+- **Too much power** — AI can do anything, not just the intended task
+- **Whitelist requirement** - unnecessarily opens up the remote execution attack vector
+
+> You wouldn't give a junior dev root SSH. Treat AI the same way.
+
 ## Two Modes
 
 ### Local Queue (No Server)
