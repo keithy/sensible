@@ -245,14 +245,56 @@ actions:
 
 ```
 sensible/
-├── cmd/sensible/     # Daemon + CLI
-├── pkg/
-│   ├── daemon/        # HTTP server
-│   ├── deploy/       # SSH bootstrap
-│   └── config/       # Config loading
-├── actions/          # Built-in actions
-├── Makefile
-└── README.md
+├── pkg/sensible/           # Library (pure domain logic, no HTTP/CLI)
+│   ├── task.go            # Task struct, interfaces
+│   ├── storage.go         # Disk storage (pending/, done/)
+│   ├── executor.go        # execlineb execution
+│   └── config.go          # Config loading
+│
+├── cmd/
+│   ├── sensible-queue/     # Go CLI (local queue, talks to disk)
+│   ├── sensible-queue.sh   # Bash CLI (same, POSIX shell)
+│   ├── sensible-server/    # Go HTTP server (uses library)
+│   ├── sensible-client/    # Go HTTP client (talks to server)
+│   └── sensible-client.sh  # Bash HTTP client (POSIX shell)
+│
+└── actions/               # Empty — execline scripts on deployed hosts
+```
+
+## Architecture
+
+**Library (`pkg/sensible`) has no knowledge of HTTP or CLI — pure domain logic.**
+
+```
+CLI or HTTP Server
+    ↓
+pkg/sensible (library)
+    ├── Task struct
+    ├── TaskRepository interface (Save, Load, ListPending, MoveToDone, Delete)
+    ├── Executor interface (Execute)
+    └── Config struct
+    ↓
+Disk storage (pending/, done/)
+```
+
+### Binaries
+
+| Binary | Size | Purpose |
+|--------|------|---------|
+| `sensible-queue` | ~3MB | Local queue CLI (Go) |
+| `sensible-queue.sh` | ~9KB | Local queue CLI (POSIX shell) |
+| `sensible-server` | ~6MB | HTTP server (Go) |
+| `sensible-client` | ~6MB | HTTP client (Go) |
+| `sensible-client.sh` | ~3KB | HTTP client (POSIX shell) |
+
+### Local vs Remote
+
+```
+Local (no server needed):
+  sensible-queue → pkg/sensible → disk (pending/, done/)
+
+Remote (requires sensible-server):
+  sensible-client → sensible-server → pkg/sensible → disk
 ```
 
 ## Relationship to Groan
