@@ -221,6 +221,40 @@ sensible/
 │   └── sensible-client.sh  # Bash HTTP client
 │
 └── actions/               # Empty — execline scripts on host
+└── systemd/               # Systemd user units
+    ├── sensible.path      # Watches pending/ via inotify
+    └── sensible.service   # Runs sensible-queue worker (one-shot)
+```
+
+## Systemd Installation (User Units)
+
+For hosts running systemd, use user units to avoid root:
+
+```bash
+# Copy units to user config directory
+mkdir -p ~/.config/systemd/user
+cp systemd/sensible.path ~/.config/systemd/user/
+cp systemd/sensible.service ~/.config/systemd/user/
+
+# Enable and start
+systemctl --user enable --now sensible.path
+```
+
+### How It Works
+
+1. `sensible.path` watches `${SENSIBLE_TASKS_DIR}/pending/` via inotify
+2. New file arrives → triggers `sensible.service`
+3. `sensible.service` runs `sensible-queue worker` once (Type=oneshot)
+4. `RefuseMultipleInstances=true` prevents concurrent runs
+5. Worker processes ready tasks (respects dependencies), exits when done
+6. When completed task is written → `.path` fires again for dependents
+
+### Check Status
+
+```bash
+systemctl --user status sensible.path
+systemctl --user status sensible.service
+journalctl --user -u sensible.service -f
 ```
 
 ## License
