@@ -196,17 +196,14 @@ func TestStorage_Load_PendingThenDone(t *testing.T) {
 }
 
 func TestGetActionTimeout(t *testing.T) {
-	whitelist := []ActionConfig{
-		{Name: "status", Timeout: 10},
-		{Name: "compile", Timeout: 600},
-	}
+	whitelist := []string{"status", "compile"}
 
 	tests := []struct {
 		request string
 		want    int
 	}{
-		{"status", 10},
-		{"compile --target=linux", 600},
+		{"status", 300},
+		{"compile --target=linux", 300},
 		{"unknown", 15},
 		{"", 15},
 	}

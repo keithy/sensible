@@ -200,33 +200,17 @@ func (s *Server) handleTaskChain(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	parts := strings.Fields(request)
-	if len(parts) == 0 {
-		http.Error(w, "empty request", http.StatusBadRequest)
+	if !s.cfg.IsAllowed(request) {
+		http.Error(w, "script not allowed", http.StatusForbidden)
 		return
 	}
-	action := parts[0]
-
-	// Check whitelist
-	found := false
-	for _, a := range s.cfg.Whitelist {
-		if a.Name == action {
-			found = true
-			break
-		}
-	}
-	if !found {
-		http.Error(w, "action not whitelisted", http.StatusForbidden)
-		return
-	}
-
-	timeout := sensible.GetActionTimeout(request, s.cfg.Whitelist)
 
 	// Create dependent task
-	task := sensible.CreateDependentTask(parentID, action, request)
+	task := sensible.CreateDependentTask(parentID, "script", request)
 
 	// Check if parent is already complete
 	if parent.Status == "success" || parent.Status == "failed" {
+		timeout := sensible.GetActionTimeout(request, s.cfg.Whitelist)
 		result := s.executor.Execute(request, timeout)
 		task.Status = result.Status
 		task.ExitCode = result.ExitCode
@@ -236,7 +220,6 @@ func (s *Server) handleTaskChain(w http.ResponseWriter, r *http.Request) {
 		task.Timestamp = time.Now().UTC().Format(time.RFC3339Nano)
 
 		s.storage.MoveToDone(task)
-		// Delete from pending (already moved to done)
 		s.storage.Delete(task.FileID)
 
 		w.Header().Set("Content-Type", "application/json")
@@ -258,42 +241,21 @@ func (s *Server) handleTaskChain(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleExecute(w http.ResponseWriter, r *http.Request, request string, timeout int) {
+	if !s.cfg.IsAllowed(request) {
+		http.Error(w, "script not allowed", http.StatusForbidden)
+		return
+	}
+
 	if timeout == 0 {
 		timeout = sensible.GetActionTimeout(request, s.cfg.Whitelist)
 	}
 
-	parts := strings.Fields(request)
-	if len(parts) == 0 {
-		http.Error(w, "empty request", http.StatusBadRequest)
-		return
-	}
-	action := parts[0]
-
-	var actionCfg sensible.ActionConfig
-	found := false
-	for _, a := range s.cfg.Whitelist {
-		if a.Name == action {
-			actionCfg = a
-			found = true
-			break
-		}
-	}
-	if !found {
-		http.Error(w, "action not whitelisted", http.StatusForbidden)
-		return
-	}
-
-	actionTimeout := actionCfg.Timeout
-	if timeout > 0 && timeout < actionTimeout {
-		actionTimeout = timeout
-	}
-
-	task := sensible.NewTask(action, request)
+	task := sensible.NewTask("script", request)
 
 	const defaultSyncTimeout = 15 // seconds
 
-	if actionTimeout <= defaultSyncTimeout {
-		result := s.executor.Execute(request, actionTimeout)
+	if timeout <= defaultSyncTimeout {
+		result := s.executor.Execute(request, timeout)
 		task.Status = result.Status
 		task.ExitCode = result.ExitCode
 		task.Stdout = result.Stdout
@@ -314,7 +276,7 @@ func (s *Server) handleExecute(w http.ResponseWriter, r *http.Request, request s
 	}
 
 	go func() {
-		result := s.executor.Execute(request, actionTimeout)
+		result := s.executor.Execute(request, timeout)
 		task.Status = result.Status
 		task.ExitCode = result.ExitCode
 		task.Stdout = result.Stdout
@@ -345,6 +307,10 @@ func (s *Server) triggerDependents(parentID string) {
 			continue
 		}
 		if task.Status != "queued" {
+			continue
+		}
+
+		if !s.cfg.IsAllowed(task.Request) {
 			continue
 		}
 
