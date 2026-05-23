@@ -101,30 +101,18 @@ func loadConfigFile(cfg *Config) {
 }
 
 // IsAllowed checks if a script action is permitted
-// Whitelist takes precedence over blacklist
-// Prefix patterns match the beginning of the script
-// Regex patterns use \s+ for whitespace matching
+// Uses regex patterns only - user specifies full pattern in config
 func (c *Config) IsAllowed(script string) bool {
 	script = strings.TrimSpace(script)
 
-	// Check whitelist first (exact prefix or regex)
-	for _, allowed := range c.Whitelist {
-		if strings.HasPrefix(script, allowed) {
-			return true
-		}
-	}
+	// Check whitelist regex first
 	for _, re := range c.whitelistRe {
 		if re.MatchString(script) {
 			return true
 		}
 	}
 
-	// Check blacklist (exact prefix or regex)
-	for _, denied := range c.Blacklist {
-		if strings.HasPrefix(script, denied) {
-			return false
-		}
-	}
+	// Check blacklist regex
 	for _, re := range c.blacklistRe {
 		if re.MatchString(script) {
 			return false
