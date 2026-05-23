@@ -109,7 +109,11 @@ cd systemd-path-system && sudo ./setup.sh
 
 The path unit watches `pending/` directory. New file triggers `sensible-consume` once.
 
-## SSH Remote Access
+## Remote Access
+
+Two options for remote execution:
+
+### SSH
 
 Lock down SSH to only allow sensible commands via forced command:
 
@@ -118,20 +122,29 @@ Lock down SSH to only allow sensible commands via forced command:
 command="/usr/local/bin/sensible" ssh-rsa AAAA...
 ```
 
-Then from container:
 ```bash
 ssh host do "echo hello"     # → sensible do "echo hello"
 ssh host status <file_id>    # → sensible status <file_id>
 ssh host list                # → sensible list
 ```
 
-User can only interact through the sensible wrapper - no arbitrary shell access.
-
-To lock to specific subcommand:
+Lock to specific subcommand:
 ```bash
 command="/usr/local/bin/sensible do" ssh-rsa AAAA...
 ```
-User can only enqueue, cannot check status or list.
+
+### HTTP/JSON
+
+```bash
+# Host: start server
+sensible-server
+
+# Container: use client
+sensible-client do "echo hello"
+sensible-client status <file_id>
+```
+
+Server supports API key authentication via `Authorization: Bearer <key>`.
 
 ## Directory Structure
 
