@@ -1,8 +1,10 @@
 package sensible
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 )
 
@@ -12,31 +14,31 @@ type Config struct {
 	ActionsDir string
 	KeysDir    string
 	TasksDir   string
-	Whitelist  []ActionConfig
+	Whitelist  []string
+	Blacklist  []string
 	APIKeys    []string
+
+	// Compiled regexes (runtime only)
+	whitelistRe []*regexp.Regexp
+	blacklistRe []*regexp.Regexp
 }
 
-// ActionConfig describes an allowed action
-type ActionConfig struct {
-	Name    string
-	Timeout int
-}
-
-// LoadConfig loads configuration from environment variables
+// LoadConfig loads configuration from environment variables and config file
 func LoadConfig() Config {
 	cfg := Config{
 		Port:       2222,
 		ActionsDir: getEnv("SENSIBLE_ACTIONS_DIR", "/var/lib/sensible/actions"),
 		KeysDir:    getEnv("SENSIBLE_KEYS_DIR", "/etc/sensible/keys"),
 		TasksDir:   getEnv("SENSIBLE_TASKS_DIR", "/var/lib/sensible/tasks"),
-		Whitelist: []ActionConfig{
-			{Name: "status", Timeout: 10},
-			{Name: "restart", Timeout: 60},
-			{Name: "compile", Timeout: 600},
-			{Name: "update", Timeout: 300},
-			{Name: "test", Timeout: 300},
-		},
+		Whitelist:  []string{"status", "restart", "compile", "update", "test"},
+		Blacklist:  []string{},
 	}
+
+	// Load config file if present
+	loadConfigFile(&cfg)
+
+	// Compile regex patterns
+	cfg.compileRe()
 
 	// Load API keys
 	keys, _ := filepath.Glob(filepath.Join(cfg.KeysDir, "*.pem"))
@@ -49,9 +51,90 @@ func LoadConfig() Config {
 	return cfg
 }
 
+func (c *Config) compileRe() {
+	for _, pattern := range c.Whitelist {
+		if re, err := regexp.Compile(pattern); err == nil {
+			c.whitelistRe = append(c.whitelistRe, re)
+		}
+	}
+	for _, pattern := range c.Blacklist {
+		if re, err := regexp.Compile(pattern); err == nil {
+			c.blacklistRe = append(c.blacklistRe, re)
+		}
+	}
+}
+
 func getEnv(key, defaultVal string) string {
 	if val := os.Getenv(key); val != "" {
 		return val
 	}
 	return defaultVal
+}
+
+func loadConfigFile(cfg *Config) {
+	// Check CONFIG env var first, then common locations
+	home := os.Getenv("HOME")
+	if home == "" {
+		home = "/root"
+	}
+	paths := []string{
+		os.Getenv("SENSIBLE_CONFIG"),
+		"/etc/sensible/config.json",
+		"/etc/sensible/config.yaml",
+		filepath.Join(home, ".config/sensible/config.json"),
+		filepath.Join(home, ".config/sensible/config.yaml"),
+	}
+
+	for _, path := range paths {
+		if path == "" {
+			continue
+		}
+		if data, err := os.ReadFile(path); err == nil {
+			// Try JSON first
+			if strings.HasSuffix(path, ".json") || !strings.Contains(path, ".") {
+				if err := json.Unmarshal(data, cfg); err == nil {
+					return
+				}
+			}
+		}
+	}
+}
+
+// IsAllowed checks if a script action is permitted
+// Whitelist takes precedence over blacklist
+// Prefix patterns match the beginning of the script
+// Regex patterns use \s+ for whitespace matching
+func (c *Config) IsAllowed(script string) bool {
+	script = strings.TrimSpace(script)
+
+	// Check whitelist first (exact prefix or regex)
+	for _, allowed := range c.Whitelist {
+		if strings.HasPrefix(script, allowed) {
+			return true
+		}
+	}
+	for _, re := range c.whitelistRe {
+		if re.MatchString(script) {
+			return true
+		}
+	}
+
+	// Check blacklist (exact prefix or regex)
+	for _, denied := range c.Blacklist {
+		if strings.HasPrefix(script, denied) {
+			return false
+		}
+	}
+	for _, re := range c.blacklistRe {
+		if re.MatchString(script) {
+			return false
+		}
+	}
+
+	// Empty whitelist means all allowed (unless blacklisted)
+	if len(c.Whitelist) == 0 && len(c.whitelistRe) == 0 {
+		return true
+	}
+
+	return false
 }

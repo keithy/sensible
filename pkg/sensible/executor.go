@@ -68,15 +68,15 @@ func (e *ExeExecutor) Execute(request string, timeout int) *Result {
 }
 
 // GetActionTimeout returns the timeout for an action from the whitelist
-func GetActionTimeout(request string, whitelist []ActionConfig) int {
+func GetActionTimeout(request string, whitelist []string) int {
 	parts := strings.Fields(request)
 	if len(parts) == 0 {
 		return 15
 	}
 	action := parts[0]
-	for _, a := range whitelist {
-		if a.Name == action {
-			return a.Timeout
+	for _, allowed := range whitelist {
+		if action == allowed {
+			return 300 // default timeout for whitelisted actions
 		}
 	}
 	return 15

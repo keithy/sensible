@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 
@@ -9,18 +10,23 @@ import (
 
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Fprintln(os.Stderr, "Usage: sensible-status <file_id>")
+		fmt.Fprintln(os.Stderr, "Usage: sensible-status <file_id> [field]")
+		fmt.Fprintln(os.Stderr, "  field: status, exit_code, stdout, stderr, duration_ms, timestamp, depends_on, request")
 		os.Exit(1)
 	}
 
 	fileID := os.Args[1]
+	field := ""
+
+	if len(os.Args) > 2 {
+		field = os.Args[2]
+	}
 
 	cfg := sensible.LoadConfig()
 	storage := sensible.NewStorage(cfg.TasksDir)
 
 	task, err := storage.Load(fileID)
 	if err != nil {
-		// Try in done/
 		cfg.TasksDir += "/done"
 		storage = sensible.NewStorage(cfg.TasksDir)
 		task, err = storage.Load(fileID)
@@ -31,20 +37,33 @@ func main() {
 		os.Exit(1)
 	}
 
-	fmt.Printf("ID:        %s\n", task.ID)
-	fmt.Printf("FileID:    %s\n", task.FileID)
-	fmt.Printf("Status:    %s\n", task.Status)
-	fmt.Printf("Request:   %s\n", task.Request)
-	fmt.Printf("ExitCode:  %d\n", task.ExitCode)
-	fmt.Printf("Duration:  %dms\n", task.DurationMs)
-	fmt.Printf("Timestamp: %s\n", task.Timestamp)
-	if task.DependsOn != "" {
-		fmt.Printf("DependsOn: %s\n", task.DependsOn)
+	if field == "" {
+		json.NewEncoder(os.Stdout).Encode(task)
+		return
 	}
-	if task.Stdout != "" {
-		fmt.Printf("Stdout:    %s\n", task.Stdout)
-	}
-	if task.Stderr != "" {
-		fmt.Printf("Stderr:    %s\n", task.Stderr)
+
+	// Output specific field verbatim
+	switch field {
+	case "status":
+		fmt.Print(task.Status)
+	case "exit_code":
+		fmt.Print(task.ExitCode)
+	case "stdout":
+		fmt.Print(task.Stdout)
+	case "stderr":
+		fmt.Print(task.Stderr)
+	case "duration_ms":
+		fmt.Print(task.DurationMs)
+	case "timestamp":
+		fmt.Print(task.Timestamp)
+	case "depends_on":
+		fmt.Print(task.DependsOn)
+	case "request":
+		fmt.Print(task.Request)
+	case "id":
+		fmt.Print(task.ID)
+	default:
+		fmt.Fprintf(os.Stderr, "Unknown field: %s\n", field)
+		os.Exit(1)
 	}
 }

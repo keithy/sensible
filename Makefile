@@ -25,6 +25,7 @@ install: build
 
 test:
 	go test ./...
+	bash tests/config_spec.sh
 
 vet:
 	go vet ./...
