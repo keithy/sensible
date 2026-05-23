@@ -39,8 +39,18 @@ func main() {
 		return
 	}
 
-	// Look for prefix-subcommand
+	// Build prefixed name early
 	prefixedName := prefix + "-" + subcommand
+
+	// Check ./build/ for subcommands (repo structure)
+	buildDir := filepath.Join(exeDir, "build")
+	subPath = filepath.Join(buildDir, prefixedName)
+	if _, err := os.Stat(subPath); err == nil {
+		run(subPath, os.Args[2:])
+		return
+	}
+
+	// Look for prefix-subcommand in exeDir
 	prefixedPath := filepath.Join(exeDir, prefixedName)
 	if _, err := os.Stat(prefixedPath); err == nil {
 		run(prefixedPath, os.Args[2:])

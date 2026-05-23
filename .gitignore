@@ -6,7 +6,12 @@
 *.test
 *.out
 vendor/
-sensible
-sensible-queue
-sensible-server
-sensible-client
+
+# Build artifacts
+build/
+
+# Legacy binaries (use build/ instead)
+# sensible
+# sensible-queue
+# sensible-server
+# sensible-client
