@@ -4,6 +4,35 @@
 
 Container signals host to execute actions via shared filesystem, using execlineb for safety.
 
+## Architecture Layers
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ Convenience Layer (optional)                                 │
+│   sensible <cmd>     # Wrapper delegating to subcommands    │
+└─────────────────────────────────────────────────────────────┘
+                              │
+┌─────────────────────────────────────────────────────────────┐
+│ CLI Layer (disk queue)                                      │
+│   sensible-do         # Enqueue scripts                    │
+│   sensible-consume     # Process queue                       │
+│   sensible-status      # Check results                      │
+│   sensible-list        # List pending                        │
+└─────────────────────────────────────────────────────────────┘
+                              │
+┌─────────────────────────────────────────────────────────────┐
+│ Systemd Layer (automation)                                  │
+│   systemd-path-*      # Watches pending/ via inotify         │
+│   systemd-system-*   # Triggers consume on directory change  │
+└─────────────────────────────────────────────────────────────┘
+                              │
+┌─────────────────────────────────────────────────────────────┐
+│ HTTP/JSON Layer (remote execution)                          │
+│   sensible-server     # HTTP API server                     │
+│   sensible-client     # HTTP client                         │
+└─────────────────────────────────────────────────────────────┘
+```
+
 ## Quick Start
 
 ```bash
