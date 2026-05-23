@@ -1,0 +1,14 @@
+[Unit]
+Description=Sensible Queue Worker
+Documentation=file:///code/sensible/README.md
+After=network.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/sensible-queue worker
+StandardOutput=journal
+StandardError=journal
+RefuseMultipleInstances=true
+
+[Install]
+WantedBy=multi-user.target
