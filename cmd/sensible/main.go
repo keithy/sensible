@@ -32,6 +32,13 @@ func main() {
 	}
 	prefix = strings.TrimSuffix(prefix, "-wrapper")
 
+	// Search path order:
+	// 1. exeDir/<subcommand>
+	// 2. exeDir/build/<prefix>-<subcommand>
+	// 3. exeDir/<prefix>-<subcommand>
+	// 4. PLUGINS_DIR/<prefix>-<subcommand>
+	// 5. PATH (standard)
+
 	// Check if subcommand exists directly
 	subPath := filepath.Join(exeDir, subcommand)
 	if _, err := os.Stat(subPath); err == nil {
@@ -39,11 +46,9 @@ func main() {
 		return
 	}
 
-	// Build prefixed name early
-	prefixedName := prefix + "-" + subcommand
-
 	// Check ./build/ for subcommands (repo structure)
 	buildDir := filepath.Join(exeDir, "build")
+	prefixedName := prefix + "-" + subcommand
 	subPath = filepath.Join(buildDir, prefixedName)
 	if _, err := os.Stat(subPath); err == nil {
 		run(subPath, os.Args[2:])
@@ -54,6 +59,17 @@ func main() {
 	prefixedPath := filepath.Join(exeDir, prefixedName)
 	if _, err := os.Stat(prefixedPath); err == nil {
 		run(prefixedPath, os.Args[2:])
+		return
+	}
+
+	// Check plugins directory
+	pluginsDir := os.Getenv("SENSIBLE_PLUGINS_DIR")
+	if pluginsDir == "" {
+		pluginsDir = "/usr/local/lib/sensible/plugins"
+	}
+	pluginPath := filepath.Join(pluginsDir, prefixedName)
+	if _, err := os.Stat(pluginPath); err == nil {
+		run(pluginPath, os.Args[2:])
 		return
 	}
 
