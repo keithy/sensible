@@ -1,6 +1,6 @@
 [Unit]
 Description=Sensible Queue Watcher
-Documentation=file:///code/sensible/README.md
+Documentation=https://github.com/keithy/sensible
 
 [Path]
 DirectoryNotEmpty=/var/lib/sensible/tasks/pending

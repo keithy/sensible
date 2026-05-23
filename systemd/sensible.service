@@ -1,6 +1,6 @@
 [Unit]
 Description=Sensible Queue Worker
-Documentation=file:///code/sensible/README.md
+Documentation=https://github.com/keithy/sensible
 After=network.target
 
 [Service]
