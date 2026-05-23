@@ -1,0 +1,14 @@
+[Unit]
+Description=Sensible Queue Worker (user)
+Documentation=https://github.com/keithy/sensible
+
+[Service]
+Type=oneshot
+Environment=SENSIBLE_TASKS_DIR=%h/.local/share/sensible/tasks
+ExecStart=/usr/local/bin/sensible-queue worker
+StandardOutput=journal
+StandardError=journal
+RefuseMultipleInstances=true
+
+[Install]
+WantedBy=default.target

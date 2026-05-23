@@ -1,0 +1,10 @@
+[Unit]
+Description=Sensible Queue Watcher (user)
+Documentation=https://github.com/keithy/sensible
+
+[Path]
+DirectoryNotEmpty=%h/.local/share/sensible/tasks/pending
+Unit=sensible-user.service
+
+[Install]
+WantedBy=default.target
