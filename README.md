@@ -107,7 +107,7 @@ cd systemd-path-user && ./setup.sh
 cd systemd-path-system && sudo ./setup.sh
 ```
 
-The path unit watches `pending/` directory. New file triggers `sensible-consume` once.
+The path unit watches `pending/` directory. New file triggers `sensible consume` via the wrapper.
 
 ## Remote Access
 
@@ -156,12 +156,37 @@ ${SENSIBLE_TASKS_DIR}/
     └── 2026-04-30T12:00:05.987654321Z-script-1.json
 ```
 
+## Installation
+
+```bash
+# User installation (no sudo)
+make install-user
+
+# System installation (requires sudo)
+sudo make install-system
+```
+
+User install creates:
+```
+~/.local/bin/sensible              # wrapper
+~/.local/lib/sensible/             # subcommands
+~/.local/lib/sensible/plugins/     # user plugins
+~/.config/sensible/config.json     # config
+```
+
+System install creates:
+```
+/usr/local/bin/sensible
+/usr/local/lib/sensible/
+/usr/local/lib/sensible/plugins/
+/etc/sensible/config.json
+```
+
 ## Building
 
 ```bash
 make build          # Build all binaries to build/
 make test           # Run tests (Go + bash-spec)
-make install        # Install to ~/.local/bin
 ```
 
 ## Project Structure
