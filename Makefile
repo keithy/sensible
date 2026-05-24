@@ -25,6 +25,7 @@ build:
 	go build -o build/sensible-status ./cmd/sensible-status
 	go build -o build/sensible-server ./cmd/sensible-server
 	go build -o build/sensible-client ./cmd/sensible-client
+	go build -o build/sensible-health ./cmd/sensible-health
 	chmod +x build/*
 
 clean:
@@ -67,6 +68,7 @@ install: install-user
 test:
 	go test ./...
 	bash tests/config_spec.sh
+	bash tests/health_spec.sh
 
 vet:
 	go vet ./...
