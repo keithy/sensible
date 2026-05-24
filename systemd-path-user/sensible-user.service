@@ -5,7 +5,7 @@ Documentation=https://github.com/keithy/sensible
 [Service]
 Type=oneshot
 Environment=SENSIBLE_TASKS_DIR=%h/.local/share/sensible/tasks
-ExecStart=/usr/local/bin/sensible-queue worker
+ExecStart=%h/.local/bin/sensible consume
 StandardOutput=journal
 StandardError=journal
 RefuseMultipleInstances=true

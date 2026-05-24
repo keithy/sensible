@@ -1,11 +1,11 @@
 [Unit]
 Description=Sensible Queue Worker
 Documentation=https://github.com/keithy/sensible
-After=network.target
 
 [Service]
 Type=oneshot
-ExecStart=/usr/local/bin/sensible-queue worker
+Environment=SENSIBLE_TASKS_DIR=/var/lib/sensible/tasks
+ExecStart=/usr/local/bin/sensible consume
 StandardOutput=journal
 StandardError=journal
 RefuseMultipleInstances=true
