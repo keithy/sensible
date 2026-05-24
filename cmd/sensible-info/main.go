@@ -77,7 +77,7 @@ func getFieldValue(field string) string {
 	case "done_count":
 		return countFiles(filepath.Join(getTasksDir(), "done"), "*.json")
 	case "tasks_dir":
-		return getTasksDir()
+		return configMap()["tasksDir"].(string)
 	case "config":
 		return configJson()
 	case "errors":
@@ -151,7 +151,6 @@ func configMap() map[string]interface{} {
 func buildHealthReport() *struct {
 	Status       string `json:"status"`
 	Version      string `json:"version"`
-	TasksDir     string `json:"tasksDir"`
 	PendingCount int    `json:"pendingCount"`
 	DoneCount    int    `json:"doneCount"`
 	Errors       []string `json:"errors"`
@@ -160,7 +159,6 @@ func buildHealthReport() *struct {
 	report := &struct {
 		Status       string `json:"status"`
 		Version      string `json:"version"`
-		TasksDir     string `json:"tasksDir"`
 		PendingCount int    `json:"pendingCount"`
 		DoneCount    int    `json:"doneCount"`
 		Errors       []string `json:"errors"`
@@ -171,9 +169,6 @@ func buildHealthReport() *struct {
 		Config: configMap(),
 	}
 
-	tasksDir := getTasksDir()
-	report.TasksDir = tasksDir
-
 	if err := checkPending(); err != nil {
 		report.Errors = append(report.Errors, "pending dir: "+err.Error())
 	}
@@ -182,8 +177,8 @@ func buildHealthReport() *struct {
 		report.Errors = append(report.Errors, "done dir: "+err.Error())
 	}
 
-	pendingCount, _ := strconv.Atoi(countFiles(filepath.Join(tasksDir, "pending"), "*.json"))
-	doneCount, _ := strconv.Atoi(countFiles(filepath.Join(tasksDir, "done"), "*.json"))
+	pendingCount, _ := strconv.Atoi(countFiles(filepath.Join(getTasksDir(), "pending"), "*.json"))
+	doneCount, _ := strconv.Atoi(countFiles(filepath.Join(getTasksDir(), "done"), "*.json"))
 	report.PendingCount = pendingCount
 	report.DoneCount = doneCount
 

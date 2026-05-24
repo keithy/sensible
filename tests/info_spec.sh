@@ -17,39 +17,39 @@ tearDown() {
 
 trap "tearDown ; output_results"  EXIT
 
-describe "sensible-health (wrapper path resolution)" && {
+describe "sensible-info (wrapper path resolution)" && {
 
   setUp
 
   it "responds via wrapper" && {
     echo $SENSIBLE_TASKS_DIR
-    "${BUILD_DIR}/sensible" health | jq -e '.status == "OK"' > /dev/null
+    "${BUILD_DIR}/sensible" info | jq -e '.status == "OK"' > /dev/null
     should_succeed
   }
 
   it "can be called directly" && {
     echo $SENSIBLE_TASKS_DIR
-    "${BUILD_DIR}/sensible-health" | jq -e '.status == "OK"' > /dev/null
+    "${BUILD_DIR}/sensible-info" | jq -e '.status == "OK"' > /dev/null
     should_succeed
   }
 
   it "outputs JSON with status field" && {
     echo $SENSIBLE_TASKS_DIR
-    output=$("${BUILD_DIR}/sensible" health)
+    output=$("${BUILD_DIR}/sensible" info)
     echo "$output" | jq -e '.status == "OK"' > /dev/null
     should_succeed
   }
 
   it "field selector returns status value" && {
     echo $SENSIBLE_TASKS_DIR
-    result=$("${BUILD_DIR}/sensible" health status)
+    result=$("${BUILD_DIR}/sensible" info status)
     [ "$result" = "OK" ]
     should_succeed
   }
 
   it "path selector returns nested value" && {
     echo $SENSIBLE_TASKS_DIR
-    result=$("${BUILD_DIR}/sensible" health config.port)
+    result=$("${BUILD_DIR}/sensible" info config.port)
     [ "$result" = "2222" ]
     should_succeed
   }

@@ -1,7 +1,7 @@
 .PHONY: all build clean install test lint fmt vet check install-user install-system
 
 # Binary names - wrapper only goes to bin, rest go to lib
-BINARIES = sensible sensible-do sensible-consume sensible-list sensible-status sensible-server sensible-client
+BINARIES = sensible sensible-do sensible-consume sensible-list sensible-status sensible-server sensible-client sensible-info
 
 # Directories
 PREFIX ?= /usr/local
@@ -25,7 +25,7 @@ build:
 	go build -o build/sensible-status ./cmd/sensible-status
 	go build -o build/sensible-server ./cmd/sensible-server
 	go build -o build/sensible-client ./cmd/sensible-client
-	go build -o build/sensible-health ./cmd/sensible-health
+	go build -o build/sensible-info ./cmd/sensible-info
 	chmod +x build/*
 
 clean:
@@ -68,7 +68,7 @@ install: install-user
 test:
 	go test ./...
 	bash tests/config_spec.sh
-	bash tests/health_spec.sh
+	bash tests/info_spec.sh
 
 vet:
 	go vet ./...
