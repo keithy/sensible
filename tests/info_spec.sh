@@ -23,34 +23,37 @@ describe "sensible-info (wrapper path resolution)" && {
 
   it "responds via wrapper" && {
     echo $SENSIBLE_TASKS_DIR
-    "${BUILD_DIR}/sensible" info | jq -e '.status == "OK"' > /dev/null
-    should_succeed
+    output=$("${BUILD_DIR}/sensible" info)
+    expect "$output" to_match '"status":"OK"'
   }
 
   it "can be called directly" && {
     echo $SENSIBLE_TASKS_DIR
-    "${BUILD_DIR}/sensible-info" | jq -e '.status == "OK"' > /dev/null
-    should_succeed
+    output=$("${BUILD_DIR}/sensible-info")
+    expect "$output" to_match '"status":"OK"'
   }
 
   it "outputs JSON with status field" && {
     echo $SENSIBLE_TASKS_DIR
     output=$("${BUILD_DIR}/sensible" info)
-    echo "$output" | jq -e '.status == "OK"' > /dev/null
-    should_succeed
+    expect "$output" to_match '"status":"OK"'
   }
 
   it "field selector returns status value" && {
     echo $SENSIBLE_TASKS_DIR
     result=$("${BUILD_DIR}/sensible" info status)
-    [ "$result" = "OK" ]
-    should_succeed
+    expect "$result" to_be "OK"
   }
 
   it "path selector returns nested value" && {
     echo $SENSIBLE_TASKS_DIR
-    result=$("${BUILD_DIR}/sensible" info config.port)
-    [ "$result" = "2222" ]
-    should_succeed
+    result=$("${BUILD_DIR}/sensible" info port)
+    expect "$result" to_be "2222"
+  }
+
+  it "config returns file contents" && {
+    echo $SENSIBLE_TASKS_DIR
+    result=$("${BUILD_DIR}/sensible" info config)
+    expect "$result" to_be ""
   }
 }

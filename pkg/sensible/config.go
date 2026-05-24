@@ -2,6 +2,7 @@ package sensible
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -96,6 +97,44 @@ func loadConfigFile(cfg *Config) {
 			}
 		}
 	}
+}
+
+// GetConfigFilePath returns the path of the first found config file
+func GetConfigFilePath() string {
+	home := os.Getenv("HOME")
+	if home == "" {
+		home = "/root"
+	}
+	paths := []string{
+		os.Getenv("SENSIBLE_CONFIG"),
+		"/etc/sensible/config.json",
+		"/etc/sensible/config.yaml",
+		filepath.Join(home, ".config/sensible/config.json"),
+		filepath.Join(home, ".config/sensible/config.yaml"),
+	}
+
+	for _, path := range paths {
+		if path == "" {
+			continue
+		}
+		if _, err := os.Stat(path); err == nil {
+			return path
+		}
+	}
+	return ""
+}
+
+// GetConfigFileContent returns the raw content of the config file
+func GetConfigFileContent() (string, error) {
+	path := GetConfigFilePath()
+	if path == "" {
+		return "", fmt.Errorf("no config file found")
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return "", err
+	}
+	return string(data), nil
 }
 
 // IsAllowed checks if a script action is permitted

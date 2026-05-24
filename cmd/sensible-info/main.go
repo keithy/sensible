@@ -64,6 +64,7 @@ func main() {
 }
 
 func getFieldValue(field string) string {
+	cfg := sensible.LoadConfig()
 	switch field {
 	case "status":
 		if checkPending() == nil && checkDone() == nil {
@@ -72,14 +73,41 @@ func getFieldValue(field string) string {
 		return "unhealthy"
 	case "version":
 		return "1.0.0"
+	case "port":
+		return fmt.Sprintf("%d", cfg.Port)
+	case "tasksDir":
+		return cfg.TasksDir
+	case "keysDir":
+		return cfg.KeysDir
+	case "whitelist":
+		return fmt.Sprintf("%v", cfg.Whitelist)
+	case "blacklist":
+		return fmt.Sprintf("%v", cfg.Blacklist)
+	case "commands":
+		return fmt.Sprintf("%v", []string{"do", "consume", "list", "status", "server", "client", "info"})
+	case "config":
+		content, err := sensible.GetConfigFileContent()
+		if err != nil {
+			return ""
+		}
+		// Return parsed config or raw if invalid JSON
+		var parsed interface{}
+		if json.Unmarshal([]byte(content), &parsed) == nil {
+			if m, ok := parsed.(map[string]interface{}); ok {
+				return fmt.Sprintf("%v", m)
+			}
+		}
+		return content
+	case "pendingCount":
+		return countFiles(filepath.Join(getTasksDir(), "pending"), "*.json")
+	case "doneCount":
+		return countFiles(filepath.Join(getTasksDir(), "done"), "*.json")
 	case "pending_count":
 		return countFiles(filepath.Join(getTasksDir(), "pending"), "*.json")
 	case "done_count":
 		return countFiles(filepath.Join(getTasksDir(), "done"), "*.json")
 	case "tasks_dir":
-		return configMap()["tasksDir"].(string)
-	case "config":
-		return configJson()
+		return cfg.TasksDir
 	case "errors":
 		if err := checkPending(); err != nil {
 			return "1"
@@ -132,6 +160,7 @@ func configJson() string {
 		"keysDir":   cfg.KeysDir,
 		"whitelist": cfg.Whitelist,
 		"blacklist": cfg.Blacklist,
+		"commands":  []string{"do", "consume", "list", "status", "server", "client", "info"},
 	}
 	cfgJson, _ := json.Marshal(cfgMap)
 	return string(cfgJson)
@@ -145,28 +174,51 @@ func configMap() map[string]interface{} {
 		"keysDir":   cfg.KeysDir,
 		"whitelist": cfg.Whitelist,
 		"blacklist": cfg.Blacklist,
+		"commands":  []string{"do", "consume", "list", "status", "server", "client", "info"},
 	}
 }
 
 func buildHealthReport() *struct {
-	Status       string `json:"status"`
-	Version      string `json:"version"`
-	PendingCount int    `json:"pendingCount"`
-	DoneCount    int    `json:"doneCount"`
+	Status       string   `json:"status"`
+	Version      string   `json:"version"`
+	Port         int      `json:"port"`
+	TasksDir     string   `json:"tasksDir"`
+	KeysDir      string   `json:"keysDir"`
+	Whitelist    []string `json:"whitelist"`
+	Blacklist    []string `json:"blacklist"`
+	Commands     []string `json:"commands"`
+	PendingCount int      `json:"pendingCount"`
+	DoneCount    int      `json:"doneCount"`
 	Errors       []string `json:"errors"`
-	Config       map[string]interface{} `json:"config"`
+	Config       interface{} `json:"config"`
 } {
+	cfg := sensible.LoadConfig()
+	configContent, _ := sensible.GetConfigFileContent()
+	var configData interface{}
+	json.Unmarshal([]byte(configContent), &configData)
 	report := &struct {
-		Status       string `json:"status"`
-		Version      string `json:"version"`
-		PendingCount int    `json:"pendingCount"`
-		DoneCount    int    `json:"doneCount"`
+		Status       string   `json:"status"`
+		Version      string   `json:"version"`
+		Port         int      `json:"port"`
+		TasksDir     string   `json:"tasksDir"`
+		KeysDir      string   `json:"keysDir"`
+		Whitelist    []string `json:"whitelist"`
+		Blacklist    []string `json:"blacklist"`
+		Commands     []string `json:"commands"`
+		PendingCount int      `json:"pendingCount"`
+		DoneCount    int      `json:"doneCount"`
 		Errors       []string `json:"errors"`
-		Config       map[string]interface{} `json:"config"`
+		Config       interface{} `json:"config"`
 	}{
-		Version: "1.0.0",
-		Errors:  []string{},
-		Config: configMap(),
+		Version:    "1.0.0",
+		Port:       cfg.Port,
+		TasksDir:   cfg.TasksDir,
+		KeysDir:    cfg.KeysDir,
+		Whitelist:  cfg.Whitelist,
+		Blacklist:  cfg.Blacklist,
+		Commands:   []string{"do", "consume", "list", "status", "server", "client", "info"},
+		Errors:     []string{},
+		Config:     configData,
 	}
 
 	if err := checkPending(); err != nil {
