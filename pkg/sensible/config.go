@@ -30,7 +30,7 @@ func LoadConfig() Config {
 		ActionsDir: getEnv("SENSIBLE_ACTIONS_DIR", "/var/lib/sensible/actions"),
 		KeysDir:    getEnv("SENSIBLE_KEYS_DIR", "/etc/sensible/keys"),
 		TasksDir:   getEnv("SENSIBLE_TASKS_DIR", "/var/lib/sensible/tasks"),
-		Whitelist:  []string{"status", "restart", "compile", "update", "test"},
+		Whitelist:  []string{"^sensible"},
 		Blacklist:  []string{},
 	}
 
