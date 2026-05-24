@@ -62,6 +62,15 @@ func main() {
 		return
 	}
 
+	// Check sibling lib directory (for local installs)
+	// If exeDir is ~/.local/bin, check ~/.local/lib/sensible/
+	siblingLib := filepath.Join(exeDir, "..", "lib", "sensible")
+	prefixedPath = filepath.Join(siblingLib, prefixedName)
+	if _, err := os.Stat(prefixedPath); err == nil {
+		run(prefixedPath, os.Args[2:])
+		return
+	}
+
 	// Check plugins directory
 	pluginsDir := os.Getenv("SENSIBLE_PLUGINS_DIR")
 	if pluginsDir == "" {
