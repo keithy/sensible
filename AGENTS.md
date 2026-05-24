@@ -151,7 +151,6 @@ type Result struct {
 | Env Var | Default |
 |---------|---------|
 | `SENSIBLE_PORT` | 8080 |
-| `SENSIBLE_ACTIONS_DIR` | `/var/lib/sensible/actions` |
 | `SENSIBLE_KEYS_DIR` | `/etc/sensible/keys` |
 | `SENSIBLE_TASKS_DIR` | `/var/lib/sensible/tasks` |
 

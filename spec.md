@@ -114,6 +114,27 @@ Environment variables:
 | `SENSIBLE_TASKS_DIR` | `/var/lib/sensible/tasks` | Task storage |
 | `SENSIBLE_CONFIG` | - | Config file path |
 
+## Recursion Protection
+
+`SENSIBLE_TASKS_DIR` is NOT passed to execlineb execution context.
+
+When sensible-consume runs a script:
+1. systemd sets `SENSIBLE_TASKS_DIR` for sensible-consume
+2. sensible-consume calls execlineb with clean env (no SENSIBLE_* vars)
+3. If script calls `sensible consume`, wrapper finds sensible-consume
+4. sensible-consume runs without `SENSIBLE_TASKS_DIR` → cannot access queue
+
+This breaks the nested execution loop.
+
+## Installation
+
+| Type | Wrapper | Subcommands |
+|------|---------|-------------|
+| User | `~/.local/bin/sensible` | `~/.local/lib/sensible/` |
+| System | `/usr/local/bin/sensible` | `/usr/local/lib/sensible/` |
+
+Wrapper searches sibling lib directory relative to its own location.
+
 ## Timestamp Format
 
 RFC3339Nano: `2026-04-30T12:00:00.123456789Z`

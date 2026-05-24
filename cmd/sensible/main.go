@@ -36,7 +36,7 @@ func main() {
 	// 1. exeDir/<subcommand>
 	// 2. exeDir/build/<prefix>-<subcommand>
 	// 3. exeDir/<prefix>-<subcommand>
-	// 4. PLUGINS_DIR/<prefix>-<subcommand>
+	// 4. sibling lib/<prefix>-<subcommand>
 	// 5. PATH (standard)
 
 	// Check if subcommand exists directly
@@ -68,17 +68,6 @@ func main() {
 	prefixedPath = filepath.Join(siblingLib, prefixedName)
 	if _, err := os.Stat(prefixedPath); err == nil {
 		run(prefixedPath, os.Args[2:])
-		return
-	}
-
-	// Check plugins directory
-	pluginsDir := os.Getenv("SENSIBLE_PLUGINS_DIR")
-	if pluginsDir == "" {
-		pluginsDir = "/usr/local/lib/sensible/plugins"
-	}
-	pluginPath := filepath.Join(pluginsDir, prefixedName)
-	if _, err := os.Stat(pluginPath); err == nil {
-		run(pluginPath, os.Args[2:])
 		return
 	}
 

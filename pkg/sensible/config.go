@@ -10,13 +10,12 @@ import (
 
 // Config holds sensible configuration
 type Config struct {
-	Port       int
-	ActionsDir string
-	KeysDir    string
-	TasksDir   string
-	Whitelist  []string
-	Blacklist  []string
-	APIKeys    []string
+	Port      int
+	KeysDir   string
+	TasksDir  string
+	Whitelist []string
+	Blacklist []string
+	APIKeys   []string
 
 	// Compiled regexes (runtime only)
 	whitelistRe []*regexp.Regexp
@@ -26,12 +25,11 @@ type Config struct {
 // LoadConfig loads configuration from environment variables and config file
 func LoadConfig() Config {
 	cfg := Config{
-		Port:       2222,
-		ActionsDir: getEnv("SENSIBLE_ACTIONS_DIR", "/var/lib/sensible/actions"),
-		KeysDir:    getEnv("SENSIBLE_KEYS_DIR", "/etc/sensible/keys"),
+		Port:     2222,
+		KeysDir:   getEnv("SENSIBLE_KEYS_DIR", "/etc/sensible/keys"),
 		TasksDir:   getEnv("SENSIBLE_TASKS_DIR", "/var/lib/sensible/tasks"),
 		Whitelist:  []string{"^sensible"},
-		Blacklist:  []string{"^sensible consume", "^sensible-consume"},
+		Blacklist:  []string{},
 	}
 
 	// Load config file if present

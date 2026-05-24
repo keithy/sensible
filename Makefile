@@ -34,7 +34,7 @@ clean:
 # Wrapper goes to ~/.local/bin, subcommands to ~/.local/lib/sensible/
 install-user: build
 	mkdir -p $(USER_BIN)
-	mkdir -p $(USER_LIB)/plugins
+	mkdir -p $(USER_LIB)
 	# Only wrapper to bin
 	cp build/sensible $(USER_BIN)/
 	chmod +x $(USER_BIN)/sensible
@@ -43,14 +43,13 @@ install-user: build
 	chmod +x $(USER_LIB)/sensible-*
 	@echo "Wrapper installed: $(USER_BIN)/sensible"
 	@echo "Subcommands: $(USER_LIB)/"
-	@echo "Plugins dir: $(USER_LIB)/plugins"
 	@echo "Config: $(USER_CONFIG)/config.json"
 
 # System installation (requires sudo)
 # Wrapper goes to /usr/local/bin, subcommands to /usr/local/lib/sensible/
 install-system: build
 	mkdir -p $(BIN_DIR)
-	mkdir -p $(LIB_DIR)/plugins
+	mkdir -p $(LIB_DIR)
 	mkdir -p $(CONFIG_DIR)
 	# Only wrapper to bin
 	cp build/sensible $(BIN_DIR)/
@@ -60,7 +59,6 @@ install-system: build
 	chmod +x $(LIB_DIR)/sensible-*
 	@echo "Wrapper installed: $(BIN_DIR)/sensible"
 	@echo "Subcommands: $(LIB_DIR)/"
-	@echo "Plugins dir: $(LIB_DIR)/plugins"
 	@echo "Config: $(CONFIG_DIR)/config.json"
 
 # Alias for backwards compatibility

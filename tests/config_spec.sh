@@ -5,9 +5,7 @@
 describe "IsAllowed with regex patterns" && {
 
   SENSIBLE_TASKS_DIR=$(mktemp -d)
-  SENSIBLE_ACTIONS_DIR=$(mktemp -d)
   export SENSIBLE_TASKS_DIR
-  export SENSIBLE_ACTIONS_DIR
 
   SENSIBLE_DO="$(cd "$(dirname "$0")/.." && pwd)/build/sensible-do"
 
@@ -91,5 +89,5 @@ EOF
   }
 
   # Cleanup
-  rm -rf "$SENSIBLE_TASKS_DIR" "$SENSIBLE_ACTIONS_DIR"
+  rm -rf "$SENSIBLE_TASKS_DIR"
 }

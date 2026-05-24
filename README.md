@@ -170,7 +170,6 @@ User install creates:
 ```
 ~/.local/bin/sensible              # wrapper
 ~/.local/lib/sensible/             # subcommands
-~/.local/lib/sensible/plugins/     # user plugins
 ~/.config/sensible/config.json     # config
 ```
 
@@ -178,7 +177,6 @@ System install creates:
 ```
 /usr/local/bin/sensible
 /usr/local/lib/sensible/
-/usr/local/lib/sensible/plugins/
 /etc/sensible/config.json
 ```
 

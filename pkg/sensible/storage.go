@@ -115,11 +115,9 @@ func (s *Storage) doneDir() string {
 }
 
 // ExeExecutor implements Executor by running tasks via execlineb
-type ExeExecutor struct {
-	ActionsDir string
-}
+type ExeExecutor struct {}
 
 // NewExeExecutor creates a new executor
-func NewExeExecutor(actionsDir string) *ExeExecutor {
-	return &ExeExecutor{ActionsDir: actionsDir}
+func NewExeExecutor() *ExeExecutor {
+	return &ExeExecutor{}
 }

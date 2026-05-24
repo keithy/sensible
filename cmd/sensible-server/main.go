@@ -26,7 +26,7 @@ type Server struct {
 func main() {
 	cfg := sensible.LoadConfig()
 	storage := sensible.NewStorage(cfg.TasksDir)
-	executor := sensible.NewExeExecutor(cfg.ActionsDir)
+	executor := sensible.NewExeExecutor()
 
 	srv := &Server{
 		cfg:      cfg,
