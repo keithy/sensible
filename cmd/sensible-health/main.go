@@ -5,104 +5,190 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 
 	"github.com/keithy/sensible/pkg/sensible"
 )
 
-type HealthReport struct {
-	Status       string   `json:"status"`
-	Version      string   `json:"version"`
-	TasksDir     string   `json:"tasks_dir"`
-	PendingDir   string   `json:"pending_dir"`
-	DoneDir      string   `json:"done_dir"`
-	PendingCount int      `json:"pending_count"`
-	DoneCount    int      `json:"done_count"`
-	Errors       []string `json:"errors,omitempty"`
-}
-
 func main() {
-	if len(os.Args) > 1 && os.Args[1] == "check" {
-		checkHealth()
-		return
-	}
-
 	field := ""
-	if len(os.Args) > 1 && os.Args[1] != "health" {
+
+	// Handle "sensible health [field]" (wrapper call)
+	if len(os.Args) > 2 {
+		field = os.Args[2]
+	} else if len(os.Args) > 1 && os.Args[1] != "health" {
+		// "sensible-health status" - direct call with field
 		field = os.Args[1]
 	}
 
-	report := buildHealthReport()
-
+	// For JSON output, build struct then marshal
 	if field == "" {
-		json.NewEncoder(os.Stdout).Encode(report)
+		report := buildHealthReport()
+		jsonOut, _ := json.Marshal(report)
+		fmt.Println(string(jsonOut))
 		return
 	}
 
-	// Output specific field verbatim
+	// For specific fields, compute directly without building full struct
+	// Support paths like "config.tasksDir"
+	if strings.Contains(field, ".") {
+		report := buildHealthReport()
+		jsonOut, _ := json.Marshal(report)
+		var data map[string]interface{}
+		json.Unmarshal(jsonOut, &data)
+		parts := strings.Split(field, ".")
+		for _, part := range parts {
+			if v, ok := data[part].(map[string]interface{}); ok {
+				data = v
+			} else if v, ok := data[part].(string); ok {
+				fmt.Print(v)
+				return
+			} else if v, ok := data[part].(int); ok {
+				fmt.Print(v)
+				return
+			} else if v, ok := data[part].(float64); ok {
+				fmt.Print(int(v))
+				return
+			} else if v, ok := data[part].(bool); ok {
+				fmt.Print(v)
+				return
+			}
+		}
+		return
+	}
+
+	// Single field - use getFieldValue
+	value := getFieldValue(field)
+	fmt.Print(value)
+}
+
+func getFieldValue(field string) string {
 	switch field {
 	case "status":
-		fmt.Print(report.Status)
-	case "version":
-		fmt.Print(report.Version)
-	case "pending_count":
-		fmt.Print(report.PendingCount)
-	case "done_count":
-		fmt.Print(report.DoneCount)
-	case "tasks_dir":
-		fmt.Print(report.TasksDir)
-	default:
-		fmt.Fprintf(os.Stderr, "Unknown field: %s\n", field)
-		os.Exit(1)
-	}
-}
-
-func checkHealth() {
-	report := buildHealthReport()
-	if report.Status == "healthy" {
-		fmt.Println("pong")
-	} else {
-		for _, e := range report.Errors {
-			fmt.Fprintln(os.Stderr, "ERROR:", e)
+		if checkPending() == nil && checkDone() == nil {
+			return "OK"
 		}
-		os.Exit(1)
+		return "unhealthy"
+	case "version":
+		return "1.0.0"
+	case "pending_count":
+		return countFiles(filepath.Join(getTasksDir(), "pending"), "*.json")
+	case "done_count":
+		return countFiles(filepath.Join(getTasksDir(), "done"), "*.json")
+	case "tasks_dir":
+		return getTasksDir()
+	case "config":
+		return configJson()
+	case "errors":
+		if err := checkPending(); err != nil {
+			return "1"
+		} else if err := checkDone(); err != nil {
+			return "1"
+		}
+		return "0"
+	default:
+		report := buildHealthReport()
+		jsonOut, _ := json.Marshal(report)
+		return string(jsonOut)
 	}
 }
 
-func buildHealthReport() *HealthReport {
-	report := &HealthReport{
+func getTasksDir() string {
+	cfg := sensible.LoadConfig()
+	return cfg.TasksDir
+}
+
+func checkPending() error {
+	pendingDir := filepath.Join(getTasksDir(), "pending")
+	if info, err := os.Stat(pendingDir); err != nil {
+		return err
+	} else if !info.IsDir() {
+		return fmt.Errorf("not a directory")
+	}
+	return nil
+}
+
+func checkDone() error {
+	doneDir := filepath.Join(getTasksDir(), "done")
+	if info, err := os.Stat(doneDir); err != nil {
+		return err
+	} else if !info.IsDir() {
+		return fmt.Errorf("not a directory")
+	}
+	return nil
+}
+
+func countFiles(dir, pattern string) string {
+	files, _ := filepath.Glob(filepath.Join(dir, pattern))
+	return fmt.Sprintf("%d", len(files))
+}
+
+func configJson() string {
+	cfg := sensible.LoadConfig()
+	cfgMap := map[string]interface{}{
+		"port":      cfg.Port,
+		"tasksDir":  cfg.TasksDir,
+		"keysDir":   cfg.KeysDir,
+		"whitelist": cfg.Whitelist,
+		"blacklist": cfg.Blacklist,
+	}
+	cfgJson, _ := json.Marshal(cfgMap)
+	return string(cfgJson)
+}
+
+func configMap() map[string]interface{} {
+	cfg := sensible.LoadConfig()
+	return map[string]interface{}{
+		"port":      cfg.Port,
+		"tasksDir":  cfg.TasksDir,
+		"keysDir":   cfg.KeysDir,
+		"whitelist": cfg.Whitelist,
+		"blacklist": cfg.Blacklist,
+	}
+}
+
+func buildHealthReport() *struct {
+	Status       string `json:"status"`
+	Version      string `json:"version"`
+	TasksDir     string `json:"tasksDir"`
+	PendingCount int    `json:"pendingCount"`
+	DoneCount    int    `json:"doneCount"`
+	Errors       []string `json:"errors"`
+	Config       map[string]interface{} `json:"config"`
+} {
+	report := &struct {
+		Status       string `json:"status"`
+		Version      string `json:"version"`
+		TasksDir     string `json:"tasksDir"`
+		PendingCount int    `json:"pendingCount"`
+		DoneCount    int    `json:"doneCount"`
+		Errors       []string `json:"errors"`
+		Config       map[string]interface{} `json:"config"`
+	}{
 		Version: "1.0.0",
 		Errors:  []string{},
+		Config: configMap(),
 	}
 
-	cfg := sensible.LoadConfig()
-	report.TasksDir = cfg.TasksDir
-	report.PendingDir = filepath.Join(cfg.TasksDir, "pending")
-	report.DoneDir = filepath.Join(cfg.TasksDir, "done")
+	tasksDir := getTasksDir()
+	report.TasksDir = tasksDir
 
-	// Check pending dir
-	if info, err := os.Stat(report.PendingDir); err != nil {
+	if err := checkPending(); err != nil {
 		report.Errors = append(report.Errors, "pending dir: "+err.Error())
-	} else if !info.IsDir() {
-		report.Errors = append(report.Errors, "pending dir not a directory")
 	}
 
-	// Check done dir
-	if info, err := os.Stat(report.DoneDir); err != nil {
+	if err := checkDone(); err != nil {
 		report.Errors = append(report.Errors, "done dir: "+err.Error())
-	} else if !info.IsDir() {
-		report.Errors = append(report.Errors, "done dir not a directory")
 	}
 
-	// Count pending
-	pendingFiles, _ := filepath.Glob(filepath.Join(report.PendingDir, "*.json"))
-	report.PendingCount = len(pendingFiles)
-
-	// Count done
-	doneFiles, _ := filepath.Glob(filepath.Join(report.DoneDir, "*.json"))
-	report.DoneCount = len(doneFiles)
+	pendingCount, _ := strconv.Atoi(countFiles(filepath.Join(tasksDir, "pending"), "*.json"))
+	doneCount, _ := strconv.Atoi(countFiles(filepath.Join(tasksDir, "done"), "*.json"))
+	report.PendingCount = pendingCount
+	report.DoneCount = doneCount
 
 	if len(report.Errors) == 0 {
-		report.Status = "healthy"
+		report.Status = "OK"
 	} else {
 		report.Status = "unhealthy"
 	}
