@@ -31,7 +31,7 @@ func LoadConfig() Config {
 		KeysDir:    getEnv("SENSIBLE_KEYS_DIR", "/etc/sensible/keys"),
 		TasksDir:   getEnv("SENSIBLE_TASKS_DIR", "/var/lib/sensible/tasks"),
 		Whitelist:  []string{"^sensible"},
-		Blacklist:  []string{},
+		Blacklist:  []string{"^sensible consume", "^sensible-consume"},
 	}
 
 	// Load config file if present
