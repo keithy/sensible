@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -12,13 +13,21 @@ import (
 )
 
 func main() {
+	// Handle help flags
+	for _, arg := range os.Args[1:] {
+		if arg == "--help" || arg == "-h" {
+			printUsage()
+			return
+		}
+	}
+
 	field := ""
 
-	// Handle "sensible health [field]" (wrapper call)
+	// Handle "sensible info [field]" (wrapper call)
 	if len(os.Args) > 2 {
 		field = os.Args[2]
-	} else if len(os.Args) > 1 && os.Args[1] != "health" {
-		// "sensible-health status" - direct call with field
+	} else if len(os.Args) > 1 && os.Args[1] != "info" {
+		// "sensible-info status" - direct call with field
 		field = os.Args[1]
 	}
 
@@ -63,6 +72,68 @@ func main() {
 	fmt.Print(value)
 }
 
+func discoverCommands() []string {
+	// Try to get commands from the wrapper
+	// Wrapper is same binary but called without subcommand args
+	exePath, err := os.Executable()
+	if err == nil {
+		exeDir := filepath.Dir(exePath)
+		exeName := filepath.Base(exePath)
+		
+		// Determine wrapper name from our own name
+		// If we're "acme-info", wrapper is "acme"
+		prefix := exeName
+		if strings.HasPrefix(prefix, "sensible-") {
+			prefix = "sensible"
+		}
+		prefix = strings.TrimSuffix(prefix, "-wrapper")
+		wrapperPath := filepath.Join(exeDir, prefix)
+		
+		cmd := exec.Command(wrapperPath, "--commands")
+		output, err := cmd.Output()
+		if err == nil {
+			var commands []string
+			if json.Unmarshal(output, &commands) == nil {
+				return commands
+			}
+		}
+	}
+	
+	// Fallback: scan executable directory
+	exePath, err = os.Executable()
+	if err != nil {
+		return []string{}
+	}
+	exeDir := filepath.Dir(exePath)
+	exeName := filepath.Base(exePath)
+
+	prefix := exeName
+	if strings.HasPrefix(prefix, "sensible-") {
+		prefix = "sensible"
+	}
+	prefix = strings.TrimSuffix(prefix, "-wrapper")
+	prefixLen := len(prefix) + 1
+
+	commands := []string{}
+	entries, err := os.ReadDir(exeDir)
+	if err != nil {
+		return commands
+	}
+	for _, e := range entries {
+		if e.IsDir() {
+			continue
+		}
+		name := e.Name()
+		if name == exeName {
+			continue
+		}
+		if len(name) > prefixLen && name[:prefixLen] == prefix+"-" {
+			commands = append(commands, name[prefixLen:])
+		}
+	}
+	return commands
+}
+
 func getFieldValue(field string) string {
 	cfg := sensible.LoadConfig()
 	switch field {
@@ -84,7 +155,7 @@ func getFieldValue(field string) string {
 	case "blacklist":
 		return fmt.Sprintf("%v", cfg.Blacklist)
 	case "commands":
-		return fmt.Sprintf("%v", []string{"do", "consume", "list", "status", "server", "client", "info"})
+		return fmt.Sprintf("%v", discoverCommands())
 	case "config":
 		content, err := sensible.GetConfigFileContent()
 		if err != nil {
@@ -216,7 +287,7 @@ func buildHealthReport() *struct {
 		KeysDir:    cfg.KeysDir,
 		Whitelist:  cfg.Whitelist,
 		Blacklist:  cfg.Blacklist,
-		Commands:   []string{"do", "consume", "list", "status", "server", "client", "info"},
+		Commands:   discoverCommands(),
 		Errors:     []string{},
 		Config:     configData,
 	}
@@ -241,4 +312,48 @@ func buildHealthReport() *struct {
 	}
 
 	return report
+}
+
+func getWrapperName() string {
+	exePath, err := os.Executable()
+	if err != nil {
+		return "sensible"
+	}
+	exeName := filepath.Base(exePath)
+	prefix := exeName
+	if strings.HasPrefix(prefix, "sensible-") {
+		prefix = "sensible"
+	}
+	prefix = strings.TrimSuffix(prefix, "-wrapper")
+	return prefix
+}
+
+func printUsage() {
+	wrapperName := getWrapperName()
+	fmt.Printf("%s-info - Display configuration and status\n", wrapperName)
+	fmt.Println("")
+	fmt.Printf("Usage:\n")
+	fmt.Printf("  %s info              Show full JSON report\n", wrapperName)
+	fmt.Printf("  %s info <field>      Show specific field value\n", wrapperName)
+	fmt.Printf("  %s info <path.to.val> Show nested value (e.g., config.port)\n", wrapperName)
+	fmt.Println("")
+	fmt.Println("Fields:")
+	fmt.Println("  status       - OK or unhealthy")
+	fmt.Println("  version      - sensible version")
+	fmt.Println("  port         - server port")
+	fmt.Println("  tasksDir     - tasks directory")
+	fmt.Println("  keysDir      - keys directory")
+	fmt.Println("  whitelist    - allowed script patterns")
+	fmt.Println("  blacklist    - denied script patterns")
+	fmt.Println("  commands     - available commands")
+	fmt.Println("  pendingCount - pending tasks count")
+	fmt.Println("  doneCount    - completed tasks count")
+	fmt.Println("  errors       - error count (0 or 1)")
+	fmt.Println("  config        - raw config file content")
+	fmt.Println("")
+	fmt.Println("Examples:")
+	fmt.Println("  sensible info")
+	fmt.Println("  sensible info status")
+	fmt.Println("  sensible info config")
+	fmt.Println("  sensible info config.port")
 }

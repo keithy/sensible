@@ -9,12 +9,18 @@ import (
 )
 
 func main() {
-	if len(os.Args) < 2 {
+	if len(os.Args) < 2 || os.Args[1] == "--help" || os.Args[1] == "-h" {
 		printUsage()
 		return
 	}
 
 	subcommand := os.Args[1]
+
+	// Hidden command to list commands as JSON (for sensible-info)
+	if subcommand == "--commands" {
+		listCommands()
+		return
+	}
 
 	exePath, err := os.Executable()
 	if err != nil {
@@ -122,8 +128,54 @@ func printUsage() {
 	}
 
 	fmt.Println("")
+	fmt.Printf("Use '%s <command> --help' for command-specific help\n", exeName)
+	fmt.Println("")
 	fmt.Printf("Examples:\n")
-	fmt.Printf("  %s queue do compile\n", exeName)
+	fmt.Printf("  %s info\n", exeName)
+	fmt.Printf("  %s info status\n", exeName)
+	fmt.Printf("  %s do compile /path/to/script\n", exeName)
 	fmt.Printf("  %s server\n", exeName)
-	fmt.Printf("  %s client status\n", exeName)
+}
+
+func listCommands() {
+	exePath, err := os.Executable()
+	if err != nil {
+		fmt.Println("[]")
+		return
+	}
+	exeDir := filepath.Dir(exePath)
+	exeName := filepath.Base(exePath)
+
+	prefix := exeName
+	if strings.HasPrefix(prefix, "sensible-") {
+		prefix = "sensible"
+	}
+	prefix = strings.TrimSuffix(prefix, "-wrapper")
+	prefixLen := len(prefix) + 1
+
+	commands := []string{}
+	entries, err := os.ReadDir(exeDir)
+	if err == nil {
+		for _, e := range entries {
+			if e.IsDir() {
+				continue
+			}
+			name := e.Name()
+			if name == exeName {
+				continue
+			}
+			if len(name) > prefixLen && name[:prefixLen] == prefix+"-" {
+				commands = append(commands, name[prefixLen:])
+			}
+		}
+	}
+	
+	fmt.Print("[")
+	for i, cmd := range commands {
+		if i > 0 {
+			fmt.Print(", ")
+		}
+		fmt.Printf("\"%s\"", cmd)
+	}
+	fmt.Println("]")
 }
