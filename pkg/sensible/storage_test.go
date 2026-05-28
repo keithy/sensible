@@ -26,16 +26,6 @@ func TestNewTask(t *testing.T) {
 	}
 }
 
-func TestCreateDependentTask(t *testing.T) {
-	task := CreateDependentTask("parent-123", "compile", "compile --target=linux")
-	if task.DependsOn != "parent-123" {
-		t.Errorf("expected DependsOn 'parent-123', got %q", task.DependsOn)
-	}
-	if task.ID != "compile" {
-		t.Errorf("expected ID 'compile', got %q", task.ID)
-	}
-}
-
 func TestStorage_SaveAndLoad(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "sensible-test-*")
 	if err != nil {

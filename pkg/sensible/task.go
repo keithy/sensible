@@ -11,7 +11,8 @@ type Task struct {
 	FileID     string `json:"file_id"`     // Unique filename, e.g. "2026-04-30T12:00:00.123Z-compile"
 	Request    string `json:"request,omitempty"`
 	Status     string `json:"status"`
-	DependsOn  string `json:"depends_on,omitempty"` // FileID of parent task
+	RunNext    string `json:"run_next,omitempty"` // FileID of next task to run after this one
+	DependsOn  string `json:"depends_on,omitempty"` // Deprecated: FileID of parent task
 	ExitCode   int    `json:"exit_code,omitempty"`
 	Stdout     string `json:"stdout,omitempty"`
 	Stderr     string `json:"stderr,omitempty"`
@@ -54,9 +55,7 @@ func NewTask(action, request string) *Task {
 	}
 }
 
-// CreateDependentTask creates a task that depends on parent completing
-func CreateDependentTask(parentID, action, request string) *Task {
-	task := NewTask(action, request)
-	task.DependsOn = parentID
-	return task
+// SetRunNext sets the next task in the chain
+func (t *Task) SetRunNext(nextFileID string) {
+	t.RunNext = nextFileID
 }

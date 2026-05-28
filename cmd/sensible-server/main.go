@@ -205,8 +205,9 @@ func (s *Server) handleTaskChain(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Create dependent task
-	task := sensible.CreateDependentTask(parentID, "script", request)
+	// Create dependent task using NewTask and set DependsOn for backward compatibility
+	task := sensible.NewTask("script", request)
+	task.DependsOn = parentID
 
 	// Check if parent is already complete
 	if parent.Status == "success" || parent.Status == "failed" {

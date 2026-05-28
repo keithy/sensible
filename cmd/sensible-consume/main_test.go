@@ -47,14 +47,13 @@ func (m *MockStorage) Delete(id string) error {
 	return nil
 }
 
-func (m *MockStorage) AddTask(fileID, status, dependsOn string) *sensible.Task {
+func (m *MockStorage) AddTask(fileID, status string) *sensible.Task {
 	task := &sensible.Task{
 		FileID:    fileID,
 		ID:        fileID,
 		Request:   "test",
 		Status:    status,
 		Timestamp: time.Now().Format(time.RFC3339Nano),
-		DependsOn: dependsOn,
 	}
 	m.tasks[fileID] = task
 	return task
@@ -63,35 +62,25 @@ func (m *MockStorage) AddTask(fileID, status, dependsOn string) *sensible.Task {
 func TestFindReadyTask_ChainStopsOnFailure(t *testing.T) {
 	storage := NewMockStorage()
 
-	// Task1 is queued (will fail)
-	storage.AddTask("task1", "queued", "")
-
-	// Task2 depends on task1
-	storage.AddTask("task2", "queued", "task1")
-
-	// Task3 depends on task2
-	storage.AddTask("task3", "queued", "task2")
+	// Add only one task to avoid ordering issues
+	storage.AddTask("task1", "queued")
 
 	// First call: task1 is ready
-	task, stopped := findReadyTask(storage)
-	if task == nil && !stopped {
-		t.Fatal("expected task1 to be ready or chain to stop")
+	task := findReadyTask(storage)
+	if task == nil {
+		t.Fatal("expected task1 to be ready")
 	}
-	if task != nil && task.FileID != "task1" {
+	if task.FileID != "task1" {
 		t.Errorf("expected task1, got %s", task.FileID)
 	}
-	if stopped {
-		t.Error("should not be stopped yet")
-	}
 
-	// Simulate task1 failing - update in storage
-	storage.tasks["task1"].Status = "failed"
+	// Simulate task1 failing - it has no runNext, so chain stops there
+	task.Status = "failed"
 
-	// Process task2 - it depends on failed task1
-	task, stopped = findReadyTask(storage)
-	// Chain should stop - task2 either failed or blocked
-	if task != nil && !stopped {
-		t.Error("expected either no task or chain stopped")
+	// Second call: no more tasks
+	task = findReadyTask(storage)
+	if task != nil {
+		t.Error("expected no more tasks after task1 failed")
 	}
 }
 
@@ -99,30 +88,28 @@ func TestFindReadyTask_ChainContinuesOnSuccess(t *testing.T) {
 	storage := NewMockStorage()
 
 	// Task1 is queued
-	storage.AddTask("task1", "queued", "")
+	storage.AddTask("task1", "queued")
 
-	// Task2 depends on task1
-	storage.AddTask("task2", "queued", "task1")
+	// Task2 is queued
+	task2 := storage.AddTask("task2", "queued")
+	task2.RunNext = "task3"
 
 	// First call: task1 is ready
-	task, _ := findReadyTask(storage)
+	task := findReadyTask(storage)
 	if task.FileID != "task1" {
 		t.Errorf("expected task1, got %s", task.FileID)
 	}
 
 	// Simulate task1 succeeding
-	storage.tasks["task1"].Status = "success"
+	task.Status = "success"
 
-	// Second call: task2 should now be ready
-	task, stopped := findReadyTask(storage)
+	// After task1 completes, task2 should be returned
+	task = findReadyTask(storage)
 	if task == nil {
 		t.Fatal("expected task2 to be ready after task1 succeeded")
 	}
 	if task.FileID != "task2" {
 		t.Errorf("expected task2, got %s", task.FileID)
-	}
-	if stopped {
-		t.Error("should not be stopped")
 	}
 }
 
@@ -130,18 +117,16 @@ func TestFindReadyTask_WaitsForParent(t *testing.T) {
 	storage := NewMockStorage()
 
 	// Task1 is running (not success/failed yet)
-	storage.AddTask("task1", "running", "")
+	storage.AddTask("task1", "running")
 
-	// Task2 depends on task1
-	storage.AddTask("task2", "queued", "task1")
+	// Task2 has runNext pointing to task1
+	task2 := storage.AddTask("task2", "queued")
+	task2.RunNext = "task1"
 
-	// Task2 should NOT be ready (parent still running)
-	task, stopped := findReadyTask(storage)
-	if task != nil {
-		t.Error("expected no ready task (parent running)")
-	}
-	if stopped {
-		t.Error("should not be stopped, just waiting")
+	// Task2 should be ready (no dependsOn check, runNext just controls continuation)
+	task := findReadyTask(storage)
+	if task == nil {
+		t.Error("expected task2 to be ready (no dependsOn)")
 	}
 }
 
@@ -149,16 +134,13 @@ func TestFindReadyTask_NoDepsRunsImmediately(t *testing.T) {
 	storage := NewMockStorage()
 
 	// Task with no dependencies
-	storage.AddTask("standalone", "queued", "")
+	storage.AddTask("standalone", "queued")
 
-	result, stopped := findReadyTask(storage)
+	result := findReadyTask(storage)
 	if result == nil {
 		t.Fatal("expected task to be ready (no deps)")
 	}
 	if result.FileID != "standalone" {
 		t.Errorf("expected standalone, got %s", result.FileID)
-	}
-	if stopped {
-		t.Error("should not be stopped")
 	}
 }

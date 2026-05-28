@@ -19,7 +19,7 @@ func main() {
 	cfg := sensible.LoadConfig()
 	storage := sensible.NewStorage(cfg.TasksDir)
 
-	var prevFileID string
+	var prevTask *sensible.Task
 
 	for i, script := range os.Args[1:] {
 		if script == "" {
@@ -32,9 +32,6 @@ func main() {
 			os.Exit(1)
 		}
 
-		// Use script content as the request
-		request := script
-
 		// Create task
 		timestamp := time.Now().UTC().Format(time.RFC3339Nano)
 		action := fmt.Sprintf("script-%d", i+1)
@@ -42,23 +39,27 @@ func main() {
 		task := &sensible.Task{
 			ID:        action,
 			FileID:    fileID,
-			Request:   request,
+			Request:   script,
 			Status:    "queued",
 			Timestamp: timestamp,
 		}
 
-		// First script has no dependency, rest depend on previous
-		if i > 0 && prevFileID != "" {
-			task.DependsOn = prevFileID
+		// If there's a previous task, set its RunNext to this task
+		if prevTask != nil {
+			prevTask.RunNext = fileID
+			if err := storage.Save(prevTask); err != nil {
+				fmt.Fprintf(os.Stderr, "Error saving task: %v\n", err)
+				os.Exit(1)
+			}
 		}
 
-		// Save to pending/
+		// Save current task (if first task, no prevTask to update)
 		if err := storage.Save(task); err != nil {
 			fmt.Fprintf(os.Stderr, "Error saving task: %v\n", err)
 			os.Exit(1)
 		}
 
 		fmt.Println(fileID)
-		prevFileID = fileID
+		prevTask = task
 	}
 }
