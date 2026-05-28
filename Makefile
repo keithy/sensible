@@ -14,19 +14,25 @@ USER_BIN = $(DESTDIR)$(HOME)/.local/bin
 USER_LIB = $(DESTDIR)$(HOME)/.local/lib/sensible
 USER_CONFIG = $(DESTDIR)$(HOME)/.config/sensible
 
+# Build output (default: build/)
+BUILD_DIR = build
+
+VERSION := $(shell git describe --tags --always 2>/dev/null || echo "dev")
+
 all: build
 
 build:
-	mkdir -p build
-	go build -o build/sensible ./cmd/sensible
-	go build -o build/sensible-do ./cmd/sensible-do
-	go build -o build/sensible-consume ./cmd/sensible-consume
-	go build -o build/sensible-list ./cmd/sensible-list
-	go build -o build/sensible-status ./cmd/sensible-status
-	go build -o build/sensible-server ./cmd/sensible-server
-	go build -o build/sensible-client ./cmd/sensible-client
-	go build -o build/sensible-info ./cmd/sensible-info
-	chmod +x build/*
+	mkdir -p $(BUILD_DIR)
+	go build -ldflags="-s -w" -o $(BUILD_DIR)/sensible ./cmd/sensible
+	go build -ldflags="-s -w" -o $(BUILD_DIR)/sensible-do ./cmd/sensible-do
+	go build -ldflags="-s -w" -o $(BUILD_DIR)/sensible-consume ./cmd/sensible-consume
+	go build -ldflags="-s -w" -o $(BUILD_DIR)/sensible-list ./cmd/sensible-list
+	go build -ldflags="-s -w" -o $(BUILD_DIR)/sensible-status ./cmd/sensible-status
+	go build -ldflags="-s -w" -o $(BUILD_DIR)/sensible-server ./cmd/sensible-server
+	go build -ldflags="-s -w" -o $(BUILD_DIR)/sensible-client ./cmd/sensible-client
+	go build -ldflags="-s -w" -o $(BUILD_DIR)/sensible-info ./cmd/sensible-info
+	chmod +x $(BUILD_DIR)/*
+	@echo "Built: $(BUILD_DIR)"
 
 clean:
 	rm -rf build

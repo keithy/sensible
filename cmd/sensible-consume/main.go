@@ -14,8 +14,12 @@ func main() {
 
 	// Loop: find and process all ready tasks until none left
 	for {
-		task := findReadyTask(storage)
+		task, stopped := findReadyTask(storage)
 		if task == nil {
+			if stopped {
+				fmt.Println("sensible-consume: chain stopped due to failure")
+				break
+			}
 			fmt.Println("sensible-consume: no ready tasks")
 			break
 		}
@@ -23,29 +27,46 @@ func main() {
 	}
 }
 
-func findReadyTask(storage sensible.TaskRepository) *sensible.Task {
+func findReadyTask(storage sensible.TaskRepository) (*sensible.Task, bool) {
 	tasks, err := storage.ListPending()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error listing tasks: %v\n", err)
-		return nil
+		return nil, false
 	}
 
-	for _, t := range tasks {
+	stopped := false
+	for i, t := range tasks {
 		if t.Status != "queued" {
 			continue
 		}
 		if t.DependsOn != "" {
 			parent, err := storage.Load(t.DependsOn)
 			if err != nil || parent == nil {
+				// Parent lost or error - fail this task too
+				tasks[i].Status = "failed"
+				tasks[i].Stderr = "parent task not found"
+				storage.MoveToDone(tasks[i])
+				storage.Delete(tasks[i].FileID)
+				stopped = true
 				continue
 			}
-			if parent.Status != "success" && parent.Status != "failed" {
+			if parent.Status == "failed" {
+				// Chain stops: mark this task as failed too
+				tasks[i].Status = "failed"
+				tasks[i].Stderr = "parent task failed"
+				storage.MoveToDone(tasks[i])
+				storage.Delete(tasks[i].FileID)
+				stopped = true
+				continue
+			}
+			if parent.Status != "success" {
+				// Parent still running, wait
 				continue
 			}
 		}
-		return t
+		return t, stopped
 	}
-	return nil
+	return nil, stopped
 }
 
 func processTask(task *sensible.Task, cfg sensible.Config, storage sensible.TaskRepository, executor sensible.Executor) {
