@@ -56,8 +56,6 @@ func main() {
 		fmt.Print(task.DurationMs)
 	case "timestamp":
 		fmt.Print(task.Timestamp)
-	case "depends_on":
-		fmt.Print(task.DependsOn)
 	case "request":
 		fmt.Print(task.Request)
 	case "id":

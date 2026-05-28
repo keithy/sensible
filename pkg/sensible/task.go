@@ -12,7 +12,6 @@ type Task struct {
 	Request    string `json:"request,omitempty"`
 	Status     string `json:"status"`
 	RunNext    string `json:"run_next,omitempty"` // FileID of next task to run after this one
-	DependsOn  string `json:"depends_on,omitempty"` // Deprecated: FileID of parent task
 	ExitCode   int    `json:"exit_code,omitempty"`
 	Stdout     string `json:"stdout,omitempty"`
 	Stderr     string `json:"stderr,omitempty"`

@@ -205,9 +205,8 @@ func (s *Server) handleTaskChain(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Create dependent task using NewTask and set DependsOn for backward compatibility
+	// Create task
 	task := sensible.NewTask("script", request)
-	task.DependsOn = parentID
 
 	// Check if parent is already complete
 	if parent.Status == "success" || parent.Status == "failed" {
@@ -304,9 +303,6 @@ func (s *Server) triggerDependents(parentID string) {
 	}
 
 	for _, task := range tasks {
-		if task.DependsOn != parentID {
-			continue
-		}
 		if task.Status != "queued" {
 			continue
 		}
