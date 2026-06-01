@@ -1,5 +1,7 @@
 # Sensible
 
+https://youtube.com/shorts/UlftjpdjisY?si=FSgbIbHmu7ZgdACm
+
 **AI agent → host execution via execlineb scripts**
 
 Container signals host to execute actions via shared filesystem, using execlineb for safety.
