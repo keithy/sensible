@@ -76,6 +76,30 @@ sensible-do "compile" "test" "deploy"
 
 Creates dependency chain: `compile` → `test` → `deploy`
 
+### Fallback (||)
+
+```bash
+sensible-do "build" "||" "build-alternative"
+sensible-do "build" "||" "build-alt" "deploy"
+```
+
+- `||` as separate argument combines two scripts into single task
+- Wraps as: `"ifelse { build } { } { build-alternative }"`
+- If `build` succeeds, chain stops (fallback not run)
+- If `build` fails, `build-alternative` runs (in same task)
+- Supports chaining: fallback task can have `run_next` to subsequent tasks
+
+### Chain on success (&&)
+
+```bash
+sensible-do "build" "&&" "test" "deploy"
+```
+
+- `&&` is ignored - chain logic already handles success continuation via `run_next`
+- Semantically documents intent that `test` only runs if `build` succeeds
+
+### Status
+
 ### Status
 
 ```bash
