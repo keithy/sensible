@@ -1,0 +1,8 @@
+{
+  "serviceName": "sensible-open",
+  "tasksDir": "%h/.local/share/sensible/tasks",
+  "keysDir": "%h/.local/share/sensible/keys",
+  "whitelist": [],
+  "blacklist": ["^sudo", "^su ", "^pkexec", "^gksu", "^doas", "^exec", "^chmod +x", "^chmod u+s", "^setfacl", "^chown", "^chgrp", "^adduser", "^usermod", "^groupadd", "^groupmod"],
+  "builtinBlacklist": []
+}

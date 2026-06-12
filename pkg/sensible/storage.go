@@ -17,6 +17,11 @@ func NewStorage(tasksDir string) *Storage {
 	return &Storage{TasksDir: tasksDir}
 }
 
+// PendingDir returns the pending tasks directory path
+func (s *Storage) PendingDir() string {
+	return filepath.Join(s.TasksDir, "pending")
+}
+
 // Save saves a task to the pending directory
 func (s *Storage) Save(task *Task) error {
 	if err := os.MkdirAll(s.pendingDir(), 0755); err != nil {

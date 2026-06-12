@@ -1,0 +1,6 @@
+{
+  "serviceName": "sensible-user",
+  "tasksDir": "%h/.local/share/sensible/tasks",
+  "keysDir": "%h/.local/share/sensible/keys",
+  "whitelist": ["^sensible", "^make", "^go "]
+}

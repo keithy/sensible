@@ -9,12 +9,28 @@ import (
 )
 
 func main() {
-	if len(os.Args) < 2 || os.Args[1] == "--help" || os.Args[1] == "-h" {
+	args := os.Args[1:]
+
+	// If no arguments given but SSH_ORIGINAL_COMMAND is set (via sshd command=),
+	// parse it to get the command the client tried to run
+	if len(args) == 0 {
+		if origCmd := os.Getenv("SSH_ORIGINAL_COMMAND"); origCmd != "" {
+			args = parseArgs(origCmd)
+			// SSH_ORIGINAL_COMMAND includes our binary name (e.g., "sensible do ...")
+			// Strip it if args[0] matches our binary name
+			exeName := filepath.Base(os.Args[0])
+			if len(args) > 0 && args[0] == exeName {
+				args = args[1:]
+			}
+		}
+	}
+
+	if len(args) == 0 || args[0] == "--help" || args[0] == "-h" {
 		printUsage()
 		return
 	}
 
-	subcommand := os.Args[1]
+	subcommand := args[0]
 
 	// Hidden command to list commands as JSON (for sensible-info)
 	if subcommand == "--commands" {
@@ -48,7 +64,7 @@ func main() {
 	// Check if subcommand exists directly
 	subPath := filepath.Join(exeDir, subcommand)
 	if _, err := os.Stat(subPath); err == nil {
-		run(subPath, os.Args[2:])
+		run(subPath, args[1:])
 		return
 	}
 
@@ -57,14 +73,14 @@ func main() {
 	prefixedName := prefix + "-" + subcommand
 	subPath = filepath.Join(buildDir, prefixedName)
 	if _, err := os.Stat(subPath); err == nil {
-		run(subPath, os.Args[2:])
+		run(subPath, args[1:])
 		return
 	}
 
 	// Look for prefix-subcommand in exeDir
 	prefixedPath := filepath.Join(exeDir, prefixedName)
 	if _, err := os.Stat(prefixedPath); err == nil {
-		run(prefixedPath, os.Args[2:])
+		run(prefixedPath, args[1:])
 		return
 	}
 
@@ -73,7 +89,7 @@ func main() {
 	siblingLib := filepath.Join(exeDir, "..", "lib", "sensible")
 	prefixedPath = filepath.Join(siblingLib, prefixedName)
 	if _, err := os.Stat(prefixedPath); err == nil {
-		run(prefixedPath, os.Args[2:])
+		run(prefixedPath, args[1:])
 		return
 	}
 
@@ -178,4 +194,44 @@ func listCommands() {
 		fmt.Printf("\"%s\"", cmd)
 	}
 	fmt.Println("]")
+}
+
+// parseArgs parses a command string into arguments, respecting quotes.
+// Used to parse SSH_ORIGINAL_COMMAND when invoked via sshd's command= option.
+func parseArgs(cmd string) []string {
+	var args []string
+	var current strings.Builder
+	inQuote := false
+	quoteChar := ' '
+
+	for i := 0; i < len(cmd); i++ {
+		c := cmd[i]
+
+		if !inQuote && (c == '"' || c == '\'') {
+			inQuote = true
+			quoteChar = rune(c)
+			continue
+		}
+
+		if inQuote && rune(c) == quoteChar {
+			inQuote = false
+			continue
+		}
+
+		if !inQuote && c == ' ' {
+			if current.Len() > 0 {
+				args = append(args, current.String())
+				current.Reset()
+			}
+			continue
+		}
+
+		current.WriteByte(c)
+	}
+
+	if current.Len() > 0 {
+		args = append(args, current.String())
+	}
+
+	return args
 }

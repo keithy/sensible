@@ -1,0 +1,8 @@
+{
+  "serviceName": "sensible-whitelist",
+  "tasksDir": "%h/.local/share/sensible/tasks",
+  "keysDir": "%h/.local/share/sensible/keys",
+  "whitelist": ["^make", "^go ", "^git ", "^cd ", "^ls", "^cat", "^echo", "^pwd"],
+  "blacklist": ["^.*"],
+  "builtinBlacklist": []
+}

@@ -1,4 +1,4 @@
-.PHONY: all build clean install test lint fmt vet check install-user install-system
+.PHONY: all build clean install test lint fmt vet check install-user install-system help
 
 # Binary names - wrapper only goes to bin, rest go to lib
 BINARIES = sensible sensible-do sensible-consume sensible-list sensible-status sensible-server sensible-client sensible-info
@@ -20,6 +20,24 @@ BUILD_DIR = build
 VERSION := $(shell git describe --tags --always 2>/dev/null || echo "dev")
 
 all: build
+
+.DEFAULT_GOAL := help
+
+help:
+	@echo "Sensible - Queue-based command runner"
+	@echo ""
+	@echo "Usage: make [target]"
+	@echo ""
+	@echo "Targets:"
+	@echo "  build          Build all binaries to ./build/"
+	@echo "  install-user   Install to ~/.local (default)"
+	@echo "  install-system Install to /usr/local (requires sudo)"
+	@echo "  test           Run tests"
+	@echo "  check Run fmt, vet, test"
+	@echo "  clean          Remove build/"
+	@echo "  uninstall      Remove user install"
+	@echo ""
+	@echo "Binaries: $(BINARIES)"
 
 build:
 	mkdir -p $(BUILD_DIR)

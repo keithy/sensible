@@ -8,46 +8,115 @@ Container signals host to execute actions via shared filesystem, using execlineb
 
 ## Architecture Layers
 
+```mermaid
+graph TB
+    subgraph SSHCLIENT["ssh client"]
+        SSHCMD["ssh user@host do"]
+    end
+
+    subgraph SSHDAEMON["sshd"]
+        DAEMON["authorized_keys<br/>command=sensible"]
+    end
+
+    subgraph HTTPCLIENT["sensible-client"]
+        CLIENT["HTTP client"]
+    end
+
+    subgraph HTTPSERVER["sensible-server"]
+        SERVER["HTTP server"]
+    end
+
+    SSHCMD <-.-> DAEMON
+    CLIENT <-.-> SERVER
+
+    subgraph CLI["CLI"]
+        DOCOM["sensible do"]
+        CONSCOM["sensible consume"]
+        STATCOM["sensible status"]
+        LISTCOM["sensible list"]
+    end
+
+    subgraph DIRECT["direct access"]
+        DIRECTBOX["bash/container/agent"]
+    end
+
+    subgraph Disk["Disk Based Queue"]
+        PEN["pending/"]
+        DON["done/"]
+    end
+
+    DIRECTBOX --> PEN
+
+    DAEMON --> DOCOM & CONSCOM & STATCOM & LISTCOM
+    SERVER --> DOCOM & CONSCOM & STATCOM & LISTCOM
+    DOCOM & CONSCOM & STATCOM & LISTCOM --> PEN --> DON
 ```
-┌─────────────────────────────────────────────────────────────┐
-│ Convenience Layer (optional)                                 │
-│   sensible <cmd>     # Wrapper delegating to subcommands    │
-└─────────────────────────────────────────────────────────────┘
-                              │
-┌─────────────────────────────────────────────────────────────┐
-│ CLI Layer (disk queue)                                      │
-│   sensible-do         # Enqueue scripts                    │
-│   sensible-consume     # Process queue                       │
-│   sensible-status      # Check results                      │
-│   sensible-list        # List pending                        │
-└─────────────────────────────────────────────────────────────┘
-                              │
-┌─────────────────────────────────────────────────────────────┐
-│ Systemd Layer (automation)                                  │
-│   systemd-path-*      # Watches pending/ via inotify         │
-│   systemd-system-*   # Triggers consume on directory change  │
-└─────────────────────────────────────────────────────────────┘
-                              │
-┌─────────────────────────────────────────────────────────────┐
-│ HTTP/JSON Layer (remote execution)                          │
-│   sensible-server     # HTTP API server                     │
-│   sensible-client     # HTTP client                         │
-└─────────────────────────────────────────────────────────────┘
-```
+
+**Layers (top to bottom):**
+1. **Remote** — SSH (left), HTTP (right)
+2. **CLI** — `do`, `consume`, `status`, `list`
+3. **Disk** — `pending/` and `done/`
 
 ## Quick Start
 
 ```bash
-# Host: start worker (systemd user units)
-cd systemd-path-user && ./setup.sh
+# Install
+make install-user
 
-# Container: enqueue scripts
-sensible-do "echo hello" "make build"
+# Enqueue scripts
+sensible do "echo hello"
+sensible do "make build"
 
-# Check result
-sensible-status <file_id>
-sensible-status <file_id> stdout  # verbatim output
+# Process queue (oneshot - exits when done)
+sensible consume
+
+# Stays alive, watches for new tasks
+sensible consume -t 60m
+# Or run as daemon
+sensible consume --start 
+# Stop with:
+sensible consume --stop
+
+# Check results
+sensible list
+sensible status <file_id>
 ```
+
+## SSH Setup (AI Identity)
+
+Give an AI restricted access to run sensible via SSH on admin's account:
+
+```bash
+# On host: install sensible
+make install-user
+
+# On host: copy default config to user's .config
+mkdir -p ~/.config/sensible
+cp examples/06-ai-monitoring.json ~/.config/sensible/config.json
+
+# On host: create AI identity key
+ssh-keygen -t ed25519 -f ~/.ssh/ai_agent_key -N "" -C "ai-agent"
+
+# On host: add to admin's authorized_keys (restrict to sensible binary only)
+cat ~/.ssh/ai_agent_key.pub >> ~/.ssh/authorized_keys
+
+# Edit authorized_keys to restrict:
+# In ~/.ssh/authorized_keys (one line):
+command="/usr/local/bin/sensible",no-pty,no-agent-forwarding,no-X11-forwarding ssh-ed25519 AAAA...ai-agent
+```
+
+Now the AI can trigger work via SSH:
+
+```bash
+# Queue work to host
+ssh -i ~/.ssh/ai_agent_key admin@host sensible do "make build"
+
+# Trigger consume on host
+ssh -i ~/.ssh/ai_agent_key admin@host sensible consume
+```
+
+- The SSH key can only invoke the `sensible` binary, not arbitrary commands
+- Validation happens at `consume` time against host's config
 
 ## Why execline?
 
@@ -64,9 +133,33 @@ Even with whitelist bypass, execline prevents shell injection.
 | Command | Description |
 |---------|-------------|
 | `sensible-do <script> [<script>...]` | Enqueue execlineb script(s), chains implicitly |
-| `sensible-consume` | One-shot worker, processes all ready tasks |
+| `sensible-consume [options]` | Process queue (see consume modes below) |
 | `sensible-status <file_id> [field]` | Check task result (JSON or specific field) |
 | `sensible-list` | List pending tasks |
+
+### Consume Modes
+
+```bash
+# Oneshot - process all and exit
+sensible consume
+
+# Daemon - run forever (watching for new tasks)
+sensible consume -t 0
+sensible consume --start
+
+# Timed - exit after idle timeout
+sensible consume -t 5m
+
+# Stop a running consume
+sensible consume --stop
+```
+
+- **oneshot**: Process all pending tasks, then exit
+- **daemon** (`-t 0` or `--start`): Run forever, watch for new tasks, stop file exits
+- **timed** (`-t <duration>`): Run until idle for the specified duration
+- **--stop**: Create stop file to gracefully stop a running consume
+
+The stop file is at `${SENSIBLE_TASKS_DIR}/pending/stop`. Creating it causes consume to exit cleanly.
 
 ### Chaining
 

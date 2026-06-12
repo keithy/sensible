@@ -1,0 +1,21 @@
+{
+  "serviceName": "sensible-ai-monitor",
+  "tasksDir": "%h/.local/share/sensible/tasks",
+  "keysDir": "%h/.local/share/sensible/keys",
+  "whitelist": [
+    "^sudo systemctl status",
+    "^sudo systemctl show",
+    "^sudo systemctl cat",
+    "^sudo journalctl",
+    "^dmesg",
+    "^sensible",
+    "^git ",
+    "^ps",
+    "^df",
+    "^free",
+    "^uptime",
+    "^hostname"
+  ],
+  "blacklist": ["^.*"],
+  "builtinBlacklist": []
+}

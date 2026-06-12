@@ -1,0 +1,8 @@
+{
+  "serviceName": "sensible-block-control",
+  "tasksDir": "%h/.local/share/sensible/tasks",
+  "keysDir": "%h/.local/share/sensible/keys",
+  "whitelist": [],
+  "blacklist": ["^.*"],
+  "builtinBlacklist": ["^foreground", "^background", "^if", "^ifelse", "^ifnot", "^forx", "^forbacktickx", "^loopwhilex"]
+}

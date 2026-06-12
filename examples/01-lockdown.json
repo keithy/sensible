@@ -1,0 +1,8 @@
+{
+  "serviceName": "sensible-lockdown",
+  "tasksDir": "%h/.local/share/sensible/tasks",
+  "keysDir": "%h/.local/share/sensible/keys",
+  "whitelist": ["^podman commit"],
+  "blacklist": ["^.*"],
+  "builtinBlacklist": []
+}
