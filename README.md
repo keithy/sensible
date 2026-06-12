@@ -227,8 +227,8 @@ Config file: `/etc/sensible/config.json` or `~/.config/sensible/config.json`
 
 ```json
 {
-  "whitelist": ["^echo", "^make"],
-  "blacklist": ["^rm -rf", "^dd"]
+  "whitelist": ["^podman commit", "^podman rmi", "^podman tag", "^podman restart"],
+  "blacklist": ["^.*"]
 }
 ```
 

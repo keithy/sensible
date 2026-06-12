@@ -1,0 +1,13 @@
+{
+  "serviceName": "sensible-podman-on-host",
+  "tasksDir": "%h/.local/share/sensible/tasks",
+  "keysDir": "%h/.local/share/sensible/keys",
+  "whitelist": [
+    "^podman commit",
+    "^podman rmi",
+    "^podman tag",
+    "^podman restart"
+  ],
+  "blacklist": ["^.*"],
+  "builtinBlacklist": []
+}
