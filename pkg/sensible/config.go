@@ -9,6 +9,22 @@ import (
 	"strings"
 )
 
+// GetProgramPrefix returns the program prefix from the executable name
+// e.g., "/usr/local/bin/sensible" -> "sensible"
+// e.g., "/usr/local/bin/acme" -> "acme"
+func GetProgramPrefix() string {
+	exePath, err := os.Executable()
+	if err != nil {
+		return "sensible" // fallback
+	}
+	exeName := filepath.Base(exePath)
+	prefix := exeName
+	if strings.HasPrefix(prefix, "sensible-") {
+		prefix = "sensible"
+	}
+	return strings.TrimSuffix(prefix, "-wrapper")
+}
+
 // Execline built-in commands (always allowed)
 // Source: https://skarnet.org/software/execline/
 var execlineBuiltins = map[string]bool{

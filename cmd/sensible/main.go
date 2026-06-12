@@ -30,6 +30,12 @@ func main() {
 		return
 	}
 
+	// Handle --commands flag (for sensible-info to discover commands)
+	if args[0] == "--commands" {
+		listCommands()
+		return
+	}
+
 	subcommand := args[0]
 
 	// Hidden command to list commands as JSON (for sensible-info)
@@ -115,49 +121,34 @@ func printUsage() {
 	exePath, _ := os.Executable()
 	exeName := filepath.Base(exePath)
 
-	prefix := exeName
-	if strings.HasPrefix(prefix, "sensible-") {
-		prefix = "sensible"
-	}
-	prefix = strings.TrimSuffix(prefix, "-wrapper")
-	prefixLen := len(prefix) + 1
-
 	fmt.Printf("Usage: %s <command> [args...]\n", exeName)
 	fmt.Println("")
 	fmt.Println("Available commands:")
 
-	exeDir := filepath.Dir(exePath)
-	entries, err := os.ReadDir(exeDir)
-	if err == nil {
-		for _, e := range entries {
-			if e.IsDir() {
-				continue
-			}
-			name := e.Name()
-			if name == exeName {
-				continue
-			}
-			if len(name) > prefixLen && name[:prefixLen] == prefix+"-" {
-				fmt.Printf("  %s\n", name[prefixLen:])
-			}
-		}
+	for _, cmd := range discoverCommands() {
+		fmt.Printf("  %s\n", cmd)
 	}
 
 	fmt.Println("")
 	fmt.Printf("Use '%s <command> --help' for command-specific help\n", exeName)
-	fmt.Println("")
-	fmt.Printf("Examples:\n")
-	fmt.Printf("  %s info\n", exeName)
-	fmt.Printf("  %s info status\n", exeName)
-	fmt.Printf("  %s do compile /path/to/script\n", exeName)
-	fmt.Printf("  %s server\n", exeName)
 }
 
 func listCommands() {
+	commands := discoverCommands()
+	fmt.Print("[")
+	for i, cmd := range commands {
+		if i > 0 {
+			fmt.Print(", ")
+		}
+		fmt.Printf("\"%s\"", cmd)
+	}
+	fmt.Println("]")
+}
+
+func discoverCommands() []string {
 	exePath, err := os.Executable()
 	if err != nil {
-		fmt.Println("[]")
-		return
+		return []string{}
 	}
 	exeDir := filepath.Dir(exePath)
 	exeName := filepath.Base(exePath)
@@ -170,8 +161,20 @@ func listCommands() {
 	prefixLen := len(prefix) + 1
 
 	commands := []string{}
-	entries, err := os.ReadDir(exeDir)
-	if err == nil {
+	seen := make(map[string]bool)
+
+	// Scan directories: exeDir, sibling lib
+	dirs := []string{exeDir}
+	siblingLib := filepath.Join(exeDir, "..", "lib", prefix)
+	if resolved, err := filepath.EvalSymlinks(siblingLib); err == nil {
+		dirs = append(dirs, resolved)
+	}
+
+	for _, dir := range dirs {
+		entries, err := os.ReadDir(dir)
+		if err != nil {
+			continue
+		}
 		for _, e := range entries {
 			if e.IsDir() {
 				continue
@@ -181,19 +184,15 @@ func listCommands() {
 				continue
 			}
 			if len(name) > prefixLen && name[:prefixLen] == prefix+"-" {
-				commands = append(commands, name[prefixLen:])
+				cmd := name[prefixLen:]
+				if !seen[cmd] {
+					seen[cmd] = true
+					commands = append(commands, cmd)
+				}
 			}
 		}
 	}
-	
-	fmt.Print("[")
-	for i, cmd := range commands {
-		if i > 0 {
-			fmt.Print(", ")
-		}
-		fmt.Printf("\"%s\"", cmd)
-	}
-	fmt.Println("]")
+	return commands
 }
 
 // parseArgs parses a command string into arguments, respecting quotes.

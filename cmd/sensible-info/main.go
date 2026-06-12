@@ -62,6 +62,11 @@ func main() {
 			} else if v, ok := data[part].(bool); ok {
 				fmt.Print(v)
 				return
+			} else if v, ok := data[part].([]interface{}); ok {
+				// Handle arrays (e.g., whitelist, blacklist)
+				jsonOut, _ := json.Marshal(v)
+				fmt.Print(string(jsonOut))
+				return
 			}
 		}
 		return
@@ -99,7 +104,7 @@ func discoverCommands() []string {
 		}
 	}
 	
-	// Fallback: scan executable directory
+	// Fallback: scan executable directory AND sibling lib directory
 	exePath, err = os.Executable()
 	if err != nil {
 		return []string{}
@@ -115,20 +120,37 @@ func discoverCommands() []string {
 	prefixLen := len(prefix) + 1
 
 	commands := []string{}
-	entries, err := os.ReadDir(exeDir)
-	if err != nil {
-		return commands
+	seen := make(map[string]bool)
+
+	// Scan directories: exeDir, sibling lib
+	dirs := []string{exeDir}
+	siblingLib := filepath.Join(exeDir, "..", "lib", "sensible")
+	// Resolve the .. component since os.ReadDir doesn't handle it
+	if resolved, err := filepath.EvalSymlinks(siblingLib); err == nil {
+		siblingLib = resolved
 	}
-	for _, e := range entries {
-		if e.IsDir() {
+	dirs = append(dirs, siblingLib)
+
+	for _, dir := range dirs {
+		entries, err := os.ReadDir(dir)
+		if err != nil {
 			continue
 		}
-		name := e.Name()
-		if name == exeName {
-			continue
-		}
-		if len(name) > prefixLen && name[:prefixLen] == prefix+"-" {
-			commands = append(commands, name[prefixLen:])
+		for _, e := range entries {
+			if e.IsDir() {
+				continue
+			}
+			name := e.Name()
+			if name == exeName {
+				continue
+			}
+			if len(name) > prefixLen && name[:prefixLen] == prefix+"-" {
+				cmd := name[prefixLen:]
+				if !seen[cmd] {
+					seen[cmd] = true
+					commands = append(commands, cmd)
+				}
+			}
 		}
 	}
 	return commands
@@ -161,12 +183,11 @@ func getFieldValue(field string) string {
 		if err != nil {
 			return ""
 		}
-		// Return parsed config or raw if invalid JSON
+		// Return parsed config as JSON
 		var parsed interface{}
 		if json.Unmarshal([]byte(content), &parsed) == nil {
-			if m, ok := parsed.(map[string]interface{}); ok {
-				return fmt.Sprintf("%v", m)
-			}
+			jsonOut, _ := json.MarshalIndent(parsed, "", "  ")
+			return string(jsonOut)
 		}
 		return content
 	case "pendingCount":
@@ -253,10 +274,6 @@ func buildHealthReport() *struct {
 	Status       string   `json:"status"`
 	Version      string   `json:"version"`
 	Port         int      `json:"port"`
-	TasksDir     string   `json:"tasksDir"`
-	KeysDir      string   `json:"keysDir"`
-	Whitelist    []string `json:"whitelist"`
-	Blacklist    []string `json:"blacklist"`
 	Commands     []string `json:"commands"`
 	PendingCount int      `json:"pendingCount"`
 	DoneCount    int      `json:"doneCount"`
@@ -264,6 +281,7 @@ func buildHealthReport() *struct {
 	Config       interface{} `json:"config"`
 } {
 	cfg := sensible.LoadConfig()
+	_ = cfg // used by getFieldValue shortcuts for individual fields
 	configContent, _ := sensible.GetConfigFileContent()
 	var configData interface{}
 	json.Unmarshal([]byte(configContent), &configData)
@@ -271,10 +289,6 @@ func buildHealthReport() *struct {
 		Status       string   `json:"status"`
 		Version      string   `json:"version"`
 		Port         int      `json:"port"`
-		TasksDir     string   `json:"tasksDir"`
-		KeysDir      string   `json:"keysDir"`
-		Whitelist    []string `json:"whitelist"`
-		Blacklist    []string `json:"blacklist"`
 		Commands     []string `json:"commands"`
 		PendingCount int      `json:"pendingCount"`
 		DoneCount    int      `json:"doneCount"`
@@ -283,10 +297,6 @@ func buildHealthReport() *struct {
 	}{
 		Version:    "1.0.0",
 		Port:       cfg.Port,
-		TasksDir:   cfg.TasksDir,
-		KeysDir:    cfg.KeysDir,
-		Whitelist:  cfg.Whitelist,
-		Blacklist:  cfg.Blacklist,
 		Commands:   discoverCommands(),
 		Errors:     []string{},
 		Config:     configData,
@@ -351,9 +361,8 @@ func printUsage() {
 	fmt.Println("  errors       - error count (0 or 1)")
 	fmt.Println("  config        - raw config file content")
 	fmt.Println("")
-	fmt.Println("Examples:")
-	fmt.Println("  sensible info")
-	fmt.Println("  sensible info status")
-	fmt.Println("  sensible info config")
-	fmt.Println("  sensible info config.port")
+	fmt.Println("Commands:")
+	fmt.Printf("  %s info              Show full JSON report\n", wrapperName)
+	fmt.Printf("  %s info <field>      Show specific field value\n", wrapperName)
+	fmt.Printf("  %s info <path.to.val> Show nested value (e.g., config.port)\n", wrapperName)
 }
