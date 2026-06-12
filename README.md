@@ -1,10 +1,21 @@
-# Sensible
+# Sensible - Secure Remote Actions (not Ansible!)
 
 https://youtube.com/shorts/UlftjpdjisY?si=FSgbIbHmu7ZgdACm
 
-**AI agent → host execution via execlineb scripts**
+## Sensible - Remote Monitoring/Management Agent
 
-Container signals host to execute actions via shared filesystem, using execlineb for safety.
+Sensible provides secure remote command execution for AI agents using a queue-based system:
+
+- **Protocol** - ssh (secured using forced-command) / REST-API
+- **AI agents** queue `execline scripts` to run on remote **hosts**
+- **Queue** stores tasks as JSON files (`pending/` → `done/`)
+- **Filter** (whitelist/blacklist) simple effective and efficient validation
+- **Execlineb** executes scripts safely — no shell injection, no `$VAR` expansion
+
+## Sensible - Container Agent -> Host Actions
+
+Container signals host to execute allowed `execline scripts`. 
+**Key benefit:** AI can trigger host actions (build, deploy, restart) without SSH/Shell/Socket access.
 
 ## Architecture Layers
 
@@ -18,12 +29,12 @@ graph TB
         DAEMON["authorized_keys<br/>command=sensible"]
     end
 
-    subgraph HTTPCLIENT["sensible-client"]
-        CLIENT["HTTP client"]
+    subgraph HTTPCLIENT["HTTP Client"]
+        CLIENT["sensible-client"]
     end
 
-    subgraph HTTPSERVER["sensible-server"]
-        SERVER["HTTP server"]
+    subgraph HTTPSERVER["HTTP Server"]
+        SERVER["sensible-server"]
     end
 
     SSHCMD <-.-> DAEMON
@@ -36,26 +47,35 @@ graph TB
         LISTCOM["sensible list"]
     end
 
-    subgraph DIRECT["direct access"]
-        DIRECTBOX["bash/container/agent"]
-    end
-
     subgraph Disk["Disk Based Queue"]
         PEN["pending/"]
         DON["done/"]
+    end
+
+    subgraph PROG["Programmatic Access"]
+        DIRECTBOX["bash/python/go<br/>json"]
+    end
+
+    subgraph EXEC["Execution Layer"]
+        WLB["whitelist/blacklist"]
+        EXECCMD["execlineb"]
+        WLB --> EXECCMD
     end
 
     DIRECTBOX --> PEN
 
     DAEMON --> DOCOM & CONSCOM & STATCOM & LISTCOM
     SERVER --> DOCOM & CONSCOM & STATCOM & LISTCOM
-    DOCOM & CONSCOM & STATCOM & LISTCOM --> PEN --> DON
+    DOCOM & CONSCOM & STATCOM & LISTCOM --> PEN --> WLB
 ```
 
 **Layers (top to bottom):**
-1. **Remote** — SSH (left), HTTP (right)
-2. **CLI** — `do`, `consume`, `status`, `list`
-3. **Disk** — `pending/` and `done/`
+1. **Clients** — SSH client | HTTP sensible-client
+2. **Server** — sshd | HTTP server endpoint -> sensible-server port
+3. **CLI** — `do`, `consume`, `status`, `list` | **Programmatic** bash/python/go (json)
+4. **Queue** — disk queue (`pending/` → `done/`)
+5. **Security Filter** - whitelist/blacklist
+6. **Execution** — execlineb (runs the scripts)
 
 ## Quick Start
 
@@ -326,6 +346,17 @@ sensible/
 ```bash
 make test           # Go tests + bash-spec tests
 bash tests/config_spec.sh  # Just bash tests
+```
+
+## Appendix: Additional Features
+
+### Remote Installation via Self-Extracting Archive (Planned)
+
+Sensible will be distributed as a self-extracting archive using `makeself` for easy remote installation:
+
+```bash
+# Download and run on target host
+./sensible-latest-x86_64.sh
 ```
 
 ## License
